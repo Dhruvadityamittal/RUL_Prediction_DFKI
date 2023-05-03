@@ -11,12 +11,13 @@ from scipy.ndimage import gaussian_filter1d
 import os
 
 from battery_dataloader import battery_dataloader
-from model import CNN_Model
+from model import CNN_Model,LSTM_Model
 from util import EarlyStopping
 
 import torch 
 from torch.utils.data import DataLoader,Dataset, random_split, Subset
 import torchmetrics
+from torchmetrics import MeanAbsolutePercentageError
 
 # This function return the cycle when battery reaches it's threshold
 def get_batteries(discharge_capacities,threshold,input_size):

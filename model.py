@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import math
-
+import torch
 class CNN_Model(nn.Module):
     
     def __init__(self,input_size):
@@ -76,4 +76,31 @@ class CNN_Model(nn.Module):
         out = self.gelu(out)    
         out = self.Linear2(out)
         
+        return out
+class LSTM_Model(nn.Module):
+    
+    def __init__(self,input_size):
+        super(LSTM_Model, self).__init__()
+
+        self.LSTM = nn.LSTM(50, 100, 4,batch_first=True)
+        
+        self.flatten = nn.Flatten()
+        self.Linear1 = nn.Linear(100,128)
+        self.Linear2 = nn.Linear(128,50)
+        self.Linear3 = nn.Linear(50,1)
+
+    def forward(self,x):
+        
+        self.h0 = torch.randn(4, x.size(0), 100)
+        self.c0 = torch.randn(4, x.size(0), 100)
+        x= x.view(x.shape[0],1,x.shape[1])
+        out, (hn, cn) = self.LSTM(x, (self.h0, self.c0))
+        
+        out = self.flatten(out)
+       
+        out = self.Linear1(out)
+        out = self.Linear2(out)
+        out = self.Linear3(out)
+
+
         return out
