@@ -18,6 +18,7 @@ import torch
 from torch.utils.data import DataLoader,Dataset, random_split, Subset
 import torchmetrics
 from torchmetrics import MeanAbsolutePercentageError
+import pandas as pd
 
 # This function return the cycle when battery reaches it's threshold
 def get_batteries(discharge_capacities,threshold,input_size):
@@ -81,7 +82,7 @@ def train_model(threshold, input_size, fold, train_dataloader, valid_dataloader,
     mse_loss  = torch.nn.MSELoss()
     mae_loss  = torch.nn.L1Loss()
     
-    epochs = 1000
+    epochs = 700
     for epoch in range(epochs):
         total_loss = 0
         total_mae = 0
@@ -224,24 +225,25 @@ if __name__ == '__main__':
     thresholds = [0.8,0.85,0.90,0.95]
     # thresholds = [0.90]
     initial_cycles = [50, 60,70,80,90,100,150,200,250,300,350,400,500]
-    initial_cycles = [500]
+    # initial_cycles = [400,500]
     
     n_folds = 5
     batch_size = args.batch_size
 
     all_maes = []
     all_mses = []
-    all_mape = []
+    all_mapes = []
     all_custom = []
 
     discharge_capacities = np.load(r'./Datasets/discharge_capacity.npy', allow_pickle=True)
 
     for threshold in thresholds:
+        mses = []
+        maes = []
+        mapes= []
+        customs = []
         for initial_cycle in initial_cycles:
-            mses = []
-            maes = []
-            mapes= []
-            customs = []
+            
             for fold in range(n_folds):
                 print("Threshold {} , initial cycles = {}, folds = {}".format(threshold,initial_cycle, fold))
                 data_x,data_y,threshold_values,data_x_index,max_cycle_length = get_batteries(discharge_capacities,threshold,initial_cycle)
@@ -266,18 +268,31 @@ if __name__ == '__main__':
                 test_dataloader = DataLoader(test_subset, batch_size=batch_size, shuffle=True)
             
                 train_model(threshold, initial_cycle, fold, train_dataloader, valid_dataloader, args.lr)
-                custom, mae, mse, mape = test_model(threshold, initial_cycle, fold, test_dataloader)
+            custom, mae, mse, mape, model_name = test_model(threshold, initial_cycle, fold, test_dataloader)
+            customs.append(custom)
+            mses.append(mse)
+            maes.append(mae)
+            mapes.append(mape)
+            
+        all_custom.append(customs)
+        all_mses.append(mses)
+        all_maes.append(maes)
+        all_mapes.append(mapes)
+    
 
-                customs.append(custom)
-                mses.append(mse)
-                maes.append(mae)
-                mapes.append(mape)
-                exit()
-            all_custom.append(customs)
-            all_mses.append(mses)
-            all_maes.append(maes)
-            all_mape.append(mapes)
-        
-    import pandas as pd
-    d = pd.DataFrame([all_maes,all_mses, all_mape ,all_custom])
-    d.to_excel("Test.xlsx",index= False) 
+    all_mses_df = pd.DataFrame(all_maes, columns=["Cycle " +str(c) for c in initial_cycles], index= thresholds)
+    all_mses_df.index.name = "Threshold"
+    
+    all_custom_df = pd.DataFrame(all_custom, columns=["Cycle " +str(c) for c in initial_cycles], index= thresholds)
+    all_custom_df.index.name = "Threshold"
+    
+    all_maes_df = pd.DataFrame(all_maes, columns=["Cycle " +str(c) for c in initial_cycles], index= thresholds)
+    all_maes_df.index.name = "Threshold"
+    
+    all_mapes_df = pd.DataFrame(all_mapes, columns=["Cycle " +str(c) for c in initial_cycles], index= thresholds)
+    all_mapes_df.index.name = "Threshold"
+
+    all_mses_df.to_excel("./Evaluations/mse_test_"+model_name +".xlsx",index= True)
+    all_custom_df.to_excel("./Evaluations/custom_test_"+model_name +".xlsx",index= True)
+    all_maes_df.to_excel("./Evaluations/mae_test_"+model_name +".xlsx",index= True)
+    all_mapes_df.to_excel("./Evaluations/mape_test_"+model_name +".xlsx",index= True)

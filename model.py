@@ -7,6 +7,7 @@ class CNN_Model(nn.Module):
     
     def __init__(self,input_size):
         super(CNN_Model, self).__init__()
+        self.name = "CNN"
         filter_size_1 = 21
         filter_size=21
         self.conv1 = nn.Conv1d(1,16,kernel_size = filter_size_1, stride=1,padding=filter_size_1//2)
@@ -81,6 +82,7 @@ class LSTM_Model(nn.Module):
     
     def __init__(self,input_size):
         super(LSTM_Model, self).__init__()
+        self.name = "LSTM"
         hidden_size1 = input_size
         hidden_size2 = input_size
         
