@@ -63,11 +63,11 @@ def get_batteries1(discharge_capacities,threshold_cycles,input_size):
 from torchmetrics import MeanAbsolutePercentageError
 
 def loss_function(predicted, actual,max_cycle_length):
-    # return torch.mean(torch.square(predicted - actual) / max_cycle_length)
-    return torch.mean(torch.abs(predicted - actual) / max_cycle_length)
+    return torch.mean(torch.square(predicted - actual) / max_cycle_length)
+    #return torch.mean(torch.abs(predicted - actual) / max_cycle_length)
 
 def train_model(threshold, input_size, fold, train_dataloader, valid_dataloader, learning_rate):
-    model = CNN_Model(input_size)
+    model = LSTM_Model(input_size)
     optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate, betas= (0.9, 0.99))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
@@ -165,7 +165,7 @@ def train_model(threshold, input_size, fold, train_dataloader, valid_dataloader,
     
 
 def test_model(threshold, input_size, fold, test_dataloader):
-    model = CNN_Model(input_size)
+    model = LSTM_Model(input_size)
     model.load_state_dict(torch.load(f'weights/model_f{threshold}_f{input_size}_f{fold}.pth'))
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
