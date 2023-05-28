@@ -15,7 +15,7 @@ def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained
     
     
     if(os.path.isdir("./Weights") == False):
-        os.mkdir(".Weights")
+        os.mkdir("./Weights")
     
     model = CNN_Model(window_size,channels)
     if(load_pretrained):

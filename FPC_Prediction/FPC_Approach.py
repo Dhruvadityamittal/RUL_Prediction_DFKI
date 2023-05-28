@@ -14,6 +14,7 @@ from dataloader import battery_dataloader,battery_dataloader_RUL
 from model import CNN_Model,LSTM_Model_RUL
 from train_model import train_model,train_model_RUL
 import argparse
+torch.manual_seed(0)
 
 
 
@@ -62,8 +63,9 @@ if __name__ == '__main__':
     window_size = 50
     channels = 7
     learning_rate = 0.001
+    stride =1
 
-    pretrained = True
+    pretrained = False
     load_pretrained = True
     version = 1
 
@@ -74,20 +76,30 @@ if __name__ == '__main__':
     else:
         model = train_model(window_size,channels,train_dataloader,epochs,learning_rate,load_pretrained,"./Weights/FPC/model_f7_f50.pth" ,"./Weights/FPC/",version)
 
-    batteries = [i for i in range(0,14)]
-    _,_ = get_fpc(model,batteries,discharge_capacities,FPC_dataloader,True, True,True,"FPC_Training")
+    changes_train = []
+    changes_test = []
 
-    batteries = [i+100 for i in range(0,14)]
-    _,_ = get_fpc(model,batteries,discharge_capacities,test_dataloader,True, False,False,"FPC_Testing")
+    batteries_train =[i for i in range (100)]
+    batteries_test= [i+100 for i in range(0,24)]
+
+    change_percentage_train, change_indices_train =  get_fpc(model,batteries_train,discharge_capacities,FPC_dataloader,False, False,True)
+    change_percentage_test, change_indices_test =  get_fpc(model,batteries_test,discharge_capacities,test_dataloader,False, False,False)
 
 
-    change_indices_train = np.load("./change_indices/change_indices_train.npy" , allow_pickle=True)
-    change_indices_test = np.load("./change_indices/change_indices_test.npy",allow_pickle=True)
+    changes_train.append(np.mean(change_percentage_train))
+    changes_test.append(np.mean(change_percentage_test))
+    
+    
+    if(os.path.exists("./change_indices") == False):
+        os.mkdir("./change_indices")
 
+    np.save("./change_indices/change_indices_train_f{channels}.npy",change_indices_train, allow_pickle=True)
+    np.save("./change_indices/change_indices_test_f{channels}.npy",change_indices_test, allow_pickle=True)
 
-    channels = 7
-    window_size = 50
-    stride =1
+    np.save("./change_indices/change_percentage_train_f{channels}.npy",change_percentage_train, allow_pickle=True)
+    np.save("./change_indices/change_percentage_test_f{channels}.npy",change_percentage_test, allow_pickle=True)
+
+    
 
     train_data_RUL_scenario1= get_data_RUL_scenario1(discharge_capacities[:100],change_indices_train,window_size,stride,channels,"Train")
     obj_train_RUL_scenario1  = battery_dataloader_RUL(train_data_RUL_scenario1)
@@ -113,11 +125,10 @@ if __name__ == '__main__':
     train_dataloader_RUL_temp_scenario2 = DataLoader(obj_train_RUL_scenario2, batch_size=1,shuffle=False)
     test_dataloader_RUL_scenario2 = DataLoader(obj_test_RUL_scenario2, batch_size=1,shuffle=False)
 
-
     learning_rate = 0.00001
-    epochs = 200
-    pretrained_RUL_scenario1 = True
-    pretrained_RUL_scenario2 = True
+    epochs = 2
+    pretrained_RUL_scenario1 = False
+    pretrained_RUL_scenario2 = False
 
     version = 1
 
@@ -139,14 +150,15 @@ if __name__ == '__main__':
         load_pretrained_scenario2 = True
         model_RUL_scenario2 = train_model_RUL(window_size, channels,train_dataloader_RUL_scenario2,epochs,learning_rate,load_pretrained_scenario2,"./Weights/Scenario2/model_RUL_Scenario2_f7_f50.pth","./Weights_RUL/Scenario2/",version) 
 
+
     
 
-    batteries =[0,1,2]
-    plot_RUL(model_RUL_scenario2,discharge_capacities,batteries,train_dataloader_RUL_temp_scenario2,change_indices_train,"scenario2_RUL_prediction_train")
+    batteries =[0,1]
+    plot_RUL(model_RUL_scenario2,discharge_capacities,batteries,train_dataloader_RUL_temp_scenario2,change_indices_train,"scenario2_RUL_prediction_train")  
 
-    test_batteries  = [i+100 for i in [16,17,18]]
+    test_batteries  = [i+100 for i in [1,2,3]]
     plot_RUL(model_RUL_scenario2,discharge_capacities,test_batteries,test_dataloader_RUL_scenario2,change_indices_test,"scenario2_RUL_prediction_test")
-
+    
     test_batteries  = [i+100 for i in range(24)]
     plot_RUL(model_RUL_scenario1,discharge_capacities,test_batteries,test_dataloader_RUL_scenario1,change_indices_test,"scenario1_RUL_prediction_test")
 

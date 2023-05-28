@@ -1,6 +1,7 @@
 import math
 import torch.nn as nn
 
+import math
 class CNN_Model(nn.Module):
     
     def __init__(self,input_size, channels):
@@ -70,6 +71,7 @@ class CNN_Model(nn.Module):
         return out
     
 
+import math
 class CNN_Model_RUL(nn.Module):
     
     def __init__(self,input_size, channels):

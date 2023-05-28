@@ -81,12 +81,12 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     plt.figure()
     if(plot):
-        rows = 2
-        col  = 7
-        fig, ax = plt.subplots(col,rows,figsize=(16,16))
+        rows = 4
+        col  = 1
+        fig, ax = plt.subplots(rows,col,figsize=(8,10),sharex=True, sharey=True)
         ax = ax.flatten()
-        plt.suptitle("Results", fontsize = 20)
-        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+        plt.suptitle("FPC Prediction", fontsize = 20)
+        # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     
     change_percentage = []
@@ -138,7 +138,7 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
                 ax[ind].plot(smoothed_output_padded,color ='black')
         
                 ax[ind].legend(["FPC", "NON-FPC","Prediction","Smoothed Output"])
-                ax[ind].set_title("Battery =" +str(battery))
+                ax[ind].set_title("Battery =" +str(battery+1))
         else:
             if(plot):
                 
@@ -146,10 +146,17 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
                 ax[ind].plot(pred, color ='red')
                 ax[ind].plot(smoothed_output, color ='black')
                 ax[ind].legend(["Actual", "Prediction", "Smoothed Prediction"])
-                ax[ind].set_title("Battery =" +str(battery))
-                
-    plt.savefig("./Images/"+save_path+".png")
+                ax[ind].set_title("Battery =" +str(battery+1))
+    
+   
+    fig.supxlabel('Cycles')
+    fig.supylabel('Discharge Capacity')
+    plt.savefig(save_path+".png")
     return change_percentage, change_indices
+
+
+
+
 
 
 
@@ -162,10 +169,10 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
 
     rows = 1
     col  = len(batteries)
-    fig, ax = plt.subplots(col,rows,figsize=(12,2*len(batteries)))
+    fig, ax = plt.subplots(col,rows,figsize=(8,4*len(batteries)))
     ax = ax.flatten()
     plt.suptitle("Results", fontsize = 20)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     mse_loss = 0
     mae_loss =0 
@@ -207,6 +214,12 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
         
         ax[ind].legend(['Predicted', 'Actual'])
         ax[ind].set_title("Battery"+str(battery))
+    
+    fig.supxlabel('Cycles')
+    fig.supylabel('Charge Percentage')
+
 
     print("MSE= {}, MSE ={} , MAPE = {}".format(mse_loss/len(batteries),mae_loss/len(batteries),mape_loss/len(batteries)))
-    plt.savefig("./Images/"+save_path+".png")
+    
+    plt.savefig(save_path+".png")
+

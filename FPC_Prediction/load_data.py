@@ -54,6 +54,7 @@ def get_data(discharge_capacities,percentage,window_size,stride,channels,type):
         return test_data
 
 
+
 def NormalizeData(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data)), (max(data), min(data))
 
