@@ -83,7 +83,7 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     if(plot):
         rows = 4
         col  = 1
-        fig, ax = plt.subplots(rows,col,figsize=(8,10),sharex=True, sharey=True)
+        fig, ax = plt.subplots(rows,col,figsize=(10,6),sharex=True, sharey=True)
         ax = ax.flatten()
         plt.suptitle("FPC Prediction", fontsize = 20)
         # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -96,19 +96,27 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     
     for ind,battery in enumerate(batteries):
+#         pred = []
+#         count = 0
+#         for x, y ,_ in data_loader:
+#             x = x.to(device=device)
+#             y = y.to(device=device)
+            
+#             initial_count = count                # This is used to avoid iterating over all batteries in the dataset 
+#             if(_[0][7:] == str(battery)):
+#                 out = torch.where(model(x) > 0.5, 1, 0)
+#                 pred.append(out.cpu().detach().numpy()[0][0].astype(float))
+#                 count = count +1
+#             if(initial_count==count and count >1):
+#                 break
         pred = []
         count = 0
-        for x, y ,_ in data_loader:
+        battery_name = "battery"+ str(battery)
+        for x in data_loader[battery_name]:
+            x = x.view(1,x.shape[0],x.shape[1])
             x = x.to(device=device)
-            y = y.to(device=device)
-            
-            initial_count = count                # This is used to avoid iterating over all batteries in the dataset 
-            if(_[0][7:] == str(battery)):
-                out = torch.where(model(x) > 0.5, 1, 0)
-                pred.append(out.cpu().detach().numpy()[0][0].astype(float))
-                count = count +1
-            if(initial_count==count and count >1):
-                break
+            out = torch.where(model(x) > 0.5, 1, 0) 
+            pred.append(out.cpu().detach().numpy()[0][0].astype(float))
 
         index,smoothed_output = get_fpc_window(pred,patiance=10)   # Index where the the transition occurs
         index = index*stride
@@ -139,6 +147,7 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
         
                 ax[ind].legend(["FPC", "NON-FPC","Prediction","Smoothed Output"])
                 ax[ind].set_title("Battery =" +str(battery+1))
+                
         else:
             if(plot):
                 
@@ -147,21 +156,13 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
                 ax[ind].plot(smoothed_output, color ='black')
                 ax[ind].legend(["Actual", "Prediction", "Smoothed Prediction"])
                 ax[ind].set_title("Battery =" +str(battery+1))
-    
-   
-    fig.supxlabel('Cycles')
-    fig.supylabel('Discharge Capacity')
+                
     plt.savefig(save_path+".png")
-    return change_percentage, change_indices
-
-
-
-
-
-
-
-
    
+#     fig.supxlabel('Cycles')
+#     fig.supylabel('Discharge Capacity')
+    
+    return change_percentage, change_indices
 
 
 
@@ -169,10 +170,10 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
 
     rows = 1
     col  = len(batteries)
-    fig, ax = plt.subplots(col,rows,figsize=(8,4*len(batteries)))
+    fig, ax = plt.subplots(col,rows,figsize=(12,2*len(batteries)))
     ax = ax.flatten()
     plt.suptitle("Results", fontsize = 20)
-    # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     mse_loss = 0
     mae_loss =0 
@@ -203,9 +204,10 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
         l = nn.MSELoss()
         l1 = nn.L1Loss()
         l2 = MeanAbsolutePercentageError()
-        mse_loss += l(torch.Tensor(pred),torch.Tensor(actual))
-        mae_loss += l1(torch.Tensor(pred),torch.Tensor(actual))
-        mape_loss += l2(torch.Tensor(pred),torch.Tensor(actual))
+        if(len(pred)!=0):
+            mse_loss += l(torch.Tensor(pred),torch.Tensor(actual))
+            mae_loss += l1(torch.Tensor(pred),torch.Tensor(actual))
+            mape_loss += l2(torch.Tensor(pred),torch.Tensor(actual))
         
         x = [change_indices[change_indices_battery]+i for i in range(len(pred))]
         # print(len(discharge_capacities[battery][0]))
@@ -214,12 +216,9 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
         
         ax[ind].legend(['Predicted', 'Actual'])
         ax[ind].set_title("Battery"+str(battery))
-    
-    fig.supxlabel('Cycles')
-    fig.supylabel('Charge Percentage')
 
-
-    print("MSE= {}, MSE ={} , MAPE = {}".format(mse_loss/len(batteries),mae_loss/len(batteries),mape_loss/len(batteries)))
+    print("MSE= {}, MAE ={} , MAPE = {}".format(mse_loss/len(batteries),mae_loss/len(batteries),mape_loss/len(batteries)))
     
     plt.savefig(save_path+".png")
+
 

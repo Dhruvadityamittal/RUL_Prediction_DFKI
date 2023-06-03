@@ -11,11 +11,11 @@ from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained,path,dir,version):
+
+def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained, path,version):
     
     
-    if(os.path.isdir("./Weights") == False):
-        os.mkdir("./Weights")
+
     
     model = CNN_Model(window_size,channels)
     if(load_pretrained):
@@ -28,7 +28,7 @@ def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained
     optimizer = torch.optim.Adam(model.parameters(), lr = lr, betas= (0.9, 0.99))
     criterion = nn.BCELoss()
     metric = BinaryAccuracy().to(device)
-    early_stopping = EarlyStopping(patience=50)
+    early_stopping = EarlyStopping(patience=20)
 
 
     for epoch in range(epochs):
@@ -60,19 +60,19 @@ def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained
         print("Loss = {} Accuarcy ={}".format(total_loss/total,acc/total_batches))
 
         evaluation = total_loss/total
-        early_stopping(evaluation, \
-                        model, f'{dir}/model_f{channels}_f{window_size}_f{version}.pth')
+        early_stopping(evaluation, model, path)
+        
         if early_stopping.early_stop:
             print('Early stopping')
             break
+    model.load_state_dict(torch.load(path, map_location=device ))    
 
     return model
 
 
 
 
-
-def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrained,path,dir,version):
+def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrained,path,version):
     
     model_RUL = LSTM_Model_RUL(window_size,channels)
     if(load_pretrained):
@@ -117,11 +117,11 @@ def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrai
         print("Epoch = {}, Loss = {} ".format(epoch, total_loss/total))
         
         evaluation = total_loss/total
-        early_stopping(evaluation, model_RUL, f'{dir}_{channels}_f{window_size}_v{version}.pth')
+        early_stopping(evaluation, model_RUL,path)
         if early_stopping.early_stop:
             print('Early stopping')
             break
-
+    model_RUL.load_state_dict(torch.load(path, map_location=device ))  
     return model_RUL
 
             

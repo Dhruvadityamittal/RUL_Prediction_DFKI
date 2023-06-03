@@ -71,14 +71,14 @@ class CNN_Model(nn.Module):
         return out
     
 
-import math
+
 class CNN_Model_RUL(nn.Module):
     
     def __init__(self,input_size, channels):
         super(CNN_Model_RUL, self).__init__()
         self.name = "CNN"
-        filter_size_1 = 5
-        filter_size   = 5
+        filter_size_1 = 21
+        filter_size   = 21
         
         self.conv1 = nn.Conv1d(channels,16,kernel_size = filter_size_1, stride=1,padding=filter_size_1//2)
         self.batch_norm1 = nn.BatchNorm1d(16)
