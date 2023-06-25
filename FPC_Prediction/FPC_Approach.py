@@ -42,7 +42,7 @@ if __name__ == '__main__':
     window_size = 50
     learning_rate = 0.001
 
-    pretrained = False
+    pretrained = True
     load_pretrained = False
     version = 1
 
