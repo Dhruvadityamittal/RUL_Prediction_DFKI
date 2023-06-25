@@ -20,6 +20,8 @@ torch.manual_seed(0)
 
 warnings.filterwarnings('ignore')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"  
+# os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 if __name__ == '__main__':
 
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     percentage  = 0.10  # 10 percent data
     window_size = 50    # window size
     stride = 1          # stride
-    channels_to_use  =[0,2,3]     # channels
+    channels_to_use  =[0,1,2,3,4,5,6]   # channels
 
     channels_to_use_s = ''.join(map(str,channels_to_use))
 
@@ -132,18 +134,19 @@ if __name__ == '__main__':
 
     # RUL Prediction
 
+    # Scenario 1
     train_data_RUL_scenario1= get_data_RUL_scenario1(discharge_capacities[:100],change_indices_train,window_size,stride,channels_to_use,"Train")
     obj_train_RUL_scenario1  = battery_dataloader_RUL(train_data_RUL_scenario1)
 
     test_data_RUL_scenario1= get_data_RUL_scenario1(discharge_capacities[100:],change_indices_test,window_size,stride,channels_to_use,"Test")
     obj_test_RUL_scenario1  = battery_dataloader_RUL(test_data_RUL_scenario1)
 
+    # Scenario 2
+    # train_data_RUL_scenario2= get_data_RUL_scenario2(discharge_capacities[:100],change_indices_train,window_size,stride,channels_to_use,"Train")
+    # obj_train_RUL_scenario2  = battery_dataloader_RUL(train_data_RUL_scenario2)
 
-    train_data_RUL_scenario2= get_data_RUL_scenario2(discharge_capacities[:100],change_indices_train,window_size,stride,channels_to_use,"Train")
-    obj_train_RUL_scenario2  = battery_dataloader_RUL(train_data_RUL_scenario2)
-
-    test_data_RUL_scenario2= get_data_RUL_scenario2(discharge_capacities[100:],change_indices_test,window_size,stride,channels_to_use,"Test")
-    obj_test_RUL_scenario2  = battery_dataloader_RUL(test_data_RUL_scenario2)
+    # test_data_RUL_scenario2= get_data_RUL_scenario2(discharge_capacities[100:],change_indices_test,window_size,stride,channels_to_use,"Test")
+    # obj_test_RUL_scenario2  = battery_dataloader_RUL(test_data_RUL_scenario2)
 
 
 
@@ -152,13 +155,13 @@ if __name__ == '__main__':
     train_dataloader_RUL_temp_scenario1 = DataLoader(obj_train_RUL_scenario1, batch_size=1,shuffle=False)
     test_dataloader_RUL_scenario1 = DataLoader(obj_test_RUL_scenario1, batch_size=1,shuffle=False)
 
-    train_dataloader_RUL_scenario2 = DataLoader(obj_train_RUL_scenario2, batch_size=128,shuffle=True)
-    train_dataloader_RUL_temp_scenario2 = DataLoader(obj_train_RUL_scenario2, batch_size=1,shuffle=False)
-    test_dataloader_RUL_scenario2 = DataLoader(obj_test_RUL_scenario2, batch_size=1,shuffle=False)
+    # train_dataloader_RUL_scenario2 = DataLoader(obj_train_RUL_scenario2, batch_size=128,shuffle=True)
+    # train_dataloader_RUL_temp_scenario2 = DataLoader(obj_train_RUL_scenario2, batch_size=1,shuffle=False)
+    # test_dataloader_RUL_scenario2 = DataLoader(obj_test_RUL_scenario2, batch_size=1,shuffle=False)
 
 
-    learning_rate_RUL = 0.00001
-    epochs_RUL = 200
+    learning_rate_RUL = 0.001
+    epochs_RUL = 500
     pretrained_RUL_scenario1 = False
     load_pretrained_scenario1 = False
     pretrained_RUL_scenario2 = True

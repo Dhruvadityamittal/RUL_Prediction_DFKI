@@ -5,6 +5,7 @@ from torchmetrics.classification import BinaryAccuracy
 from util import EarlyStopping
 import torch.nn as nn
 from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL
+import time
 
 
 
@@ -73,8 +74,12 @@ def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained
 
 
 def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrained,path,version):
+    times = []
+#     model_RUL = LSTM_Model_RUL(window_size,channels)
     
-    model_RUL = LSTM_Model_RUL(window_size,channels)
+    model_RUL = Net()    # Transformer Model
+#     model_RUL = CNN_Model_RUL(window_size,channels)    # CNN Model
+    print("Model :", model_RUL.name)
     if(load_pretrained):
         print("Loading a Pre-trained Model")
         model_RUL.load_state_dict(torch.load(path,map_location= device))
@@ -83,13 +88,14 @@ def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrai
     model_RUL.to(device) 
         
     optimizer = torch.optim.Adam(model_RUL.parameters(), lr = lr, betas= (0.9, 0.99))
-    criterion = nn.L1Loss()
-             
+#     criterion = nn.L1Loss()
+    criterion = nn.MSELoss()
     model_RUL.train()
     
-    early_stopping = EarlyStopping(patience=30)
-
+    early_stopping = EarlyStopping(patience=50)
+    
     for epoch in range(epochs):
+        start = time.time()
         total_loss = 0
         
         model_RUL.requires_grad_(True)
@@ -101,9 +107,14 @@ def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrai
 
             x = x.to(device=device)
             y = y.to(device=device)
-            out = model_RUL(x)
-
-            loss = criterion(out,y.unsqueeze(1))
+            
+            
+            if(model_RUL.name == "Transformer"):
+                out,d = model_RUL(x)
+                loss = criterion(out,y.unsqueeze(1))  + 0*criterion(d,x)
+            else:
+                out =  model_RUL(x)
+                loss = criterion(out,y.unsqueeze(1))
 
             optimizer.zero_grad()
             loss.backward()
@@ -113,7 +124,8 @@ def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrai
             total += x.size()[0]
             total_batches +=1
 
-
+        end = time.time()
+        times.append(end-start)
         print("Epoch = {}, Loss = {} ".format(epoch, total_loss/total))
         
         evaluation = total_loss/total
@@ -121,9 +133,9 @@ def train_model_RUL(window_size,channels,train_dataloader,epochs,lr,load_pretrai
         if early_stopping.early_stop:
             print('Early stopping')
             break
+    print("Average Epoch Times:" ,np.mean(times))       
     model_RUL.load_state_dict(torch.load(path, map_location=device ))  
     return model_RUL
-
             
     
         
