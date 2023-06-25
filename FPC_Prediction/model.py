@@ -1,6 +1,7 @@
 import math
 import torch.nn as nn
-
+import torch.nn.functional as F
+import torch
 import math
 class CNN_Model(nn.Module):
     
@@ -181,3 +182,166 @@ class LSTM_Model_RUL(nn.Module):
 
 
         return out
+    
+
+    
+class Autoencoder(nn.Module):
+    def __init__(self, input_size=16, hidden_dim=8, noise_level=0.01):
+        super(Autoencoder, self).__init__()
+        self.input_size, self.hidden_dim, self.noise_level = input_size, hidden_dim, noise_level
+        self.conv1 = nn.Conv1d(7,16,kernel_size = 21, stride=1,padding=21//2)
+        self.max_pool = nn.MaxPool1d(2,stride =2, padding =1)
+        self.conv2 = nn.Conv1d(16,32,kernel_size = 21, stride=1,padding=21//2)
+        
+#         flatten_size = 128*math.floor(50/(2*2*2))
+        self.fc1 = nn.Linear(16*50, self.hidden_dim)
+        self.fc2 = nn.Linear(self.hidden_dim, self.input_size)
+        self.flatten = nn.Flatten(start_dim=1)
+        self.relu  = nn.ReLU()
+        self.en_conv1 = nn.Conv1d(32,16,kernel_size = 21, stride=1,padding=21//2)
+        self.en_conv2 = nn.Conv1d(16,7,kernel_size = 21, stride=1,padding=21//2)
+    
+        
+    def encoder(self, x):
+        
+        x = self.conv1(x)
+#         x = self.relu(x/)
+#       x = self.max_pool(x)
+#         x = self.conv2(x)
+#       x = self.max_pool(x)
+        
+               
+        x = self.flatten(x)
+#         print(x.shape)
+        h1 =self.relu(x)
+        return h1
+    
+    def mask(self, x):
+        corrupted_x = x + self.noise_level * torch.randn_like(x)
+        return corrupted_x
+    
+    def decoder(self, x):
+       
+        x  = x.view(x.shape[0],-1,50)
+#         print(x.shape)
+#         x = self.en_conv1(x)
+#         x = self.relu(x)
+        x = self.en_conv2(x)
+        h2 = self.relu(x)
+
+        return h2
+    
+    def forward(self, x):
+        out = self.mask(x)
+        encode = self.encoder(out)
+        
+        decode = self.decoder(encode)
+        return encode, decode
+    
+    
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0.0, max_len=16):
+        super(PositionalEncoding, self).__init__()
+
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+
+        pe = pe.unsqueeze(0).transpose(0, 1)
+
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(1), :].squeeze(1)
+        return x
+
+
+class Net(nn.Module):
+    def __init__(self, feature_size=16, hidden_dim=32, num_layers=2, nhead=8, dropout=0.1, noise_level=0.01):
+        super(Net, self).__init__()
+        self.name = "Transformer"
+        self.auto_hidden = int(feature_size/2)
+        input_size = self.auto_hidden 
+        self.pos = PositionalEncoding(d_model=input_size, max_len=input_size)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=input_size, nhead=nhead, dim_feedforward=hidden_dim, dropout=dropout)
+        self.cell = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
+        self.linear1 = nn.Linear(input_size, 128)
+        
+        self.linear2 = nn.Linear(128, 64)
+        self.linear3 = nn.Linear(64, 1)
+#         self.LayerNorm = nn.LayerNorm(1)
+        
+        self.autoencoder = Autoencoder(input_size=feature_size, hidden_dim=self.auto_hidden, noise_level=noise_level)
+        self.sigmoid = nn.Sigmoid()
+        self.relu    = nn.ReLU()
+        self.fc1 = nn.Linear(16*50, 8)
+        
+ 
+    def forward(self, x): 
+        
+        batch_size, feature_num, feature_size  = x.shape 
+#         encode, decode = self.autoencoder(x.reshape(batch_size, -1))# batch_size*seq_len
+        
+        encode, decode = self.autoencoder(x)# batch_size*seq_len
+#         print(encode.shape)
+        out = self.fc1(encode)
+        out = out.reshape(batch_size, -1, self.auto_hidden)
+#         print("out", out.shape)
+        
+        out = self.pos(out)
+#         print("pos",out.shape)
+        out = out.reshape(1, batch_size, -1) # (1, batch_size, feature_size)
+        out = self.cell(out)  
+#         print("cell",out.shape)
+        out = out.reshape(batch_size, -1) # (batch_size, hidden_dim)
+        out = self.linear1(out)            # out shape: (batch_size, 1)
+#         print("fc3",out.shape)
+#         out = self.LayerNorm(out)
+        out = self.linear2(out)
+#         print("fc4",out.shape)
+        out = self.relu(out)
+        
+        out = self.linear3(out)
+#         print("fc5",out.shape)
+#         out= self.sigmoid(out)
+        
+        return out     , decode
+
+class Net_new(nn.Module):
+    def __init__(self):
+        super(Net_new, self).__init__()
+        self.pos = PositionalEncoding(d_model=50, max_len=50)
+        encoder_layers = nn.TransformerEncoderLayer(d_model=50, nhead=2, dim_feedforward=100, dropout=0.1)
+        self.cell = nn.TransformerEncoder(encoder_layers, num_layers=1)
+        self.conv1 = nn.Conv1d(7,16,kernel_size = 21, stride=1,padding=21//2)
+        self.max_pool1 = nn.MaxPool1d(2)
+        self.conv2 = nn.Conv1d(16,32,kernel_size = 21, stride=1,padding=21//2)
+        self.flatten = nn.Flatten()
+        flatten_size = 128*math.floor(50/(2*2*2*2))
+        self.linear1 = nn.Linear(flatten_size,100)
+        self.linear2 = nn.Linear(100,1)
+        self.sigmoid = nn.Sigmoid()
+    
+    
+    
+    def forward(self,x):
+        out = self.pos(x)
+        out = self.cell(out)
+        out = self.conv1(out)
+        out = self.max_pool1(out)
+        out = self.conv2(out)
+        out = self.max_pool1(out)
+        out = self.flatten(out)
+        out = self.linear1(out)           
+#         out = self.linear2(out)
+        out = self.relu(out)
+        out = self.linear2(out)
+        out = self.relu(out)
+        
+        return out
+    
+    

@@ -4,8 +4,9 @@ import torch
 from torchmetrics.classification import BinaryAccuracy
 from util import EarlyStopping
 import torch.nn as nn
-from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL
+from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new
 import time
+
 
 
 
