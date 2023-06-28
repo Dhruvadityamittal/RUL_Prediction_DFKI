@@ -56,6 +56,7 @@ if __name__ == '__main__':
 
     model_dir = "./Weights/FPC/"
     model_path = f'{model_dir}/model_FPC_f{channels_to_use_s}_f{window_size}_f{version}.pth'
+    print(model_path)
 
     changes_train = []
     changes_test = []
@@ -161,7 +162,7 @@ if __name__ == '__main__':
 
 
     learning_rate_RUL = 0.001
-    epochs_RUL = 500
+    epochs_RUL = 5
     pretrained_RUL_scenario1 = False
     load_pretrained_scenario1 = False
     pretrained_RUL_scenario2 = True

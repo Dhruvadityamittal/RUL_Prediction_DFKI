@@ -166,6 +166,8 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
 
 
 
+from torchmetrics import MeanAbsolutePercentageError
+
 def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,save_path):
 
     rows = 1
@@ -189,7 +191,10 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
             initial_count = count
 
             if(_[0][7:] == str(battery)):
-                out = model(x)
+                if(model.name =="Transformer"):
+                    out,d = model(x)
+                else:
+                    out = model(x)
                 pred.append(out.cpu().detach().numpy()[0][0].astype(float))
                 actual.append(y.cpu().detach().numpy()[0].astype(float))
                 count = count +1
@@ -220,5 +225,6 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
     print("MSE= {}, MAE ={} , MAPE = {}".format(mse_loss/len(batteries),mae_loss/len(batteries),mape_loss/len(batteries)))
     
     plt.savefig(save_path+".png")
+
 
 
