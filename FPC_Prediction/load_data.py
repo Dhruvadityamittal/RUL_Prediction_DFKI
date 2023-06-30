@@ -1,5 +1,18 @@
 import numpy as np
 import torch
+import os 
+
+def get_dirs():
+    important_dirs = ["Weights","Weights/FPC","Weights/Scenario1","Weights/Scenario2","Outputs"]
+
+    for dir in important_dirs:
+        if(os.path.isdir(dir)==False):
+            print("Creating Directory :", dir)
+            os.mkdir(dir)
+
+def get_discharge_capacities():
+      discharge_capacities = np.load(r"Datasets/discharge_capacity.npy", allow_pickle=True)
+      return  discharge_capacities.tolist()
 
 def get_data(discharge_capacities,percentage,window_size,stride,channels,type):
 
@@ -68,80 +81,46 @@ def NormalizeData(data):
     return (data - np.min(data)) / (np.max(data) - np.min(data)), (max(data), min(data))
 
 
-
         
-def get_data_RUL_scenario1(discharge_capacities,change_indices, window_size,stride,channels, type):
+def get_data_RUL_scenario1(discharge_capacities,batteries, change_indices, window_size,stride,channels):
         
-        if(type == "Train"):
-            
-            train_data =[]
-            for index,battery in enumerate(discharge_capacities):
-                    battery = np.asarray([battery[i] for i in channels])
-                    battery_name = "battery" + str(index)
-                    i = change_indices[index]   # FPC cycle
-                    
-                    percentage_index = 0
-                    
-                    EOL = len(battery[0])
+        data =[]
+        for bat in (batteries):
+                battery = np.asarray([discharge_capacities[bat][i] for i in channels])
+                battery_name = "battery" + str(bat)
+                i = change_indices[bat]   # FPC cycle
+                
+                percentage_index = 0
+                
+                EOL = len(battery[0])
 
-                    while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
-                            train_data.append((battery[:,i:i+window_size], 1-((i-change_indices[index])/(EOL - change_indices[index])),battery_name ))
-                            i = i+stride
-                            percentage_index = percentage_index+1
+                while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
+                        data.append((battery[:,i:i+window_size], 1-((i-change_indices[bat])/(EOL - change_indices[bat])),battery_name ))
+                        i = i+stride
+                        percentage_index = percentage_index+1
 
-            return train_data
-        else:
-            print(type)
-            test_data =[]
-            for index,battery in enumerate(discharge_capacities):
-                    battery = np.asarray([battery[i] for i in channels])
-                    battery_name = "battery" + str(index+100)
-                    i = change_indices[index]   # FPC cycle
-                    percentage_index = 0
-                    
-                    EOL = len(battery[0])
-                    
+        return data
 
-                    while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
-                            test_data.append((battery[:,i:i+window_size], 1-(i-change_indices[index])/(EOL - change_indices[index]),battery_name ))
-                            i = i+stride
-                            percentage_index = percentage_index+1
-                        
-            return test_data
 
 def get_data_RUL_scenario2(discharge_capacities,change_indices, window_size,stride,channels, type):
-        
-        if(type == "Train"):
+                
+        data =[]
+        for bat in (discharge_capacities):
+                battery = np.asarray([battery[bat][i] for i in channels])
+                battery_name = "battery" + str(bat)
+                i = change_indices[bat]
+                
+                percentage_index = 0
+                normalized_capacity,_ = NormalizeData(battery[0][i:])
+
+                while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
+                        data.append((battery[:,i:i+window_size], normalized_capacity[percentage_index],battery_name ))
+                        i = i+stride
+                        percentage_index = percentage_index+1
+
+        return data
             
-            train_data =[]
-            for index,battery in enumerate(discharge_capacities):
-                    battery = np.asarray([battery[i] for i in channels])
-                    battery_name = "battery" + str(index)
-                    i = change_indices[index]
-                    
-                    percentage_index = 0
-                    normalized_capacity,_ = NormalizeData(battery[0][i:])
 
-                    while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
-                            train_data.append((battery[:,i:i+window_size], normalized_capacity[percentage_index],battery_name ))
-                            i = i+stride
-                            percentage_index = percentage_index+1
+   
 
-            return train_data
-        else:
-           
-            test_data =[]
-            for index,battery in enumerate(discharge_capacities):
-                    battery = np.asarray([battery[i] for i in channels])
-                    battery_name = "battery" + str(index+100)
-                    i = change_indices[index]
-                    percentage_index = 0
-                    normalized_capacity,_ = NormalizeData(battery[0][i:])
-
-                    while(i+stride+window_size+1 <= int(len(battery[0])) and len(battery[0][i:i+window_size]) == window_size):
-                            test_data.append((battery[:,i:i+window_size], normalized_capacity[percentage_index],battery_name ))
-                            i = i+stride
-                            percentage_index = percentage_index+1
-            return test_data
-            
 

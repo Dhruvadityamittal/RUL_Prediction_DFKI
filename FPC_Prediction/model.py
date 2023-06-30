@@ -150,7 +150,7 @@ class LSTM_Model_RUL(nn.Module):
         self.name = "LSTM"
         hidden_size1 = input_size
         hidden_size2 = input_size
-        
+        print(input_size)
         num_layers = 4
         self.LSTM1 = nn.LSTM(input_size = input_size, hidden_size = hidden_size1, num_layers = num_layers,batch_first=True)
         self.LSTM2 = nn.LSTM(input_size = input_size, hidden_size = hidden_size2, num_layers = num_layers,batch_first=True)

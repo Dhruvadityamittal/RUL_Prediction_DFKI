@@ -4,13 +4,19 @@ import matplotlib.pylab as plt
 from load_data import NormalizeData
 from torchmetrics import MeanAbsolutePercentageError
 import torch.nn as nn
-
+from torchmetrics import MeanAbsolutePercentageError
+from torch.utils.data import DataLoader
+import os
+from load_data import get_data
+from dataloader import battery_dataloader, battery_dataloader_RUL
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 percentage  = 0.10  # 5 percent data
 window_size = 50    # window size
 stride = 1          # stride
 channels  = 7       # channels
+
+
 
 
 class EarlyStopping:
@@ -96,21 +102,8 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     
     for ind,battery in enumerate(batteries):
-#         pred = []
-#         count = 0
-#         for x, y ,_ in data_loader:
-#             x = x.to(device=device)
-#             y = y.to(device=device)
-            
-#             initial_count = count                # This is used to avoid iterating over all batteries in the dataset 
-#             if(_[0][7:] == str(battery)):
-#                 out = torch.where(model(x) > 0.5, 1, 0)
-#                 pred.append(out.cpu().detach().numpy()[0][0].astype(float))
-#                 count = count +1
-#             if(initial_count==count and count >1):
-#                 break
+
         pred = []
-        count = 0
         battery_name = "battery"+ str(battery)
         for x in data_loader[battery_name]:
             x = x.view(1,x.shape[0],x.shape[1])
@@ -159,15 +152,85 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
                 
     plt.savefig(save_path+".png")
    
-#     fig.supxlabel('Cycles')
-#     fig.supylabel('Discharge Capacity')
     
     return change_percentage, change_indices
 
+def get_change_indices(model,discharge_capacities,channels):
+
+    changes_train = []
+    changes_test = []
+    epochs = 50
+    # os.mkdir("/kaggle/working/change_indices")
+    get_saved_indices = True
+    ch = ''.join(map(str,channels))
+    if(not get_saved_indices):
+
+        for channels in [channels]: 
+            print("Channels used : ", channels)
+            percentage  = 0.10  # 5 percent data
+            window_size = 50    # window size
+            stride = 1          # stride
+
+            train_data,FPC_data,FPC_data_dict = get_data(discharge_capacities[:100],percentage,window_size,stride,channels,type = "train")
+            test_data,test_data_dict  = get_data(discharge_capacities[100:],None,window_size,stride,channels,type= "test")
+
+            obj_train  = battery_dataloader(train_data)
+            obj_FPC  = battery_dataloader(FPC_data)
+            obj_test  = battery_dataloader(test_data)
+
+            train_dataloader = DataLoader(obj_train, batch_size=8,shuffle=True)
+            FPC_dataloader   = DataLoader(obj_FPC,batch_size=1,shuffle=False)
+            test_dataloader = DataLoader(obj_test, batch_size=1,shuffle=False)
+
+            print("Shape of a batch    :",next(iter(train_dataloader))[0].shape)
+    
+
+            batteries_train =[i for i in range (100)]
+            batteries_test= [i+100 for i in range(0,24)]
+
+            change_percentage_train, change_indices_train =  get_fpc(model,batteries_train,discharge_capacities,FPC_data_dict,False, False,True,"")
+            change_percentage_test, change_indices_test =  get_fpc(model,batteries_test,discharge_capacities,test_data_dict,False, False,False,"")
 
 
-from torchmetrics import MeanAbsolutePercentageError
+            changes_train.append(np.mean(change_percentage_train))
+            changes_test.append(np.mean(change_percentage_test))
 
+            print("Mean FPC for Training is {}and Test is {} :".format(np.mean(changes_train), np.mean(changes_test)))
+            
+            
+            if(os.path.exists("./change_indices") == False):
+                os.mkdir("./change_indices")
+
+            np.save(f"./change_indices/change_indices_train_{ch}.npy",change_indices_train, allow_pickle=True)
+            np.save(f"./change_indices/change_indices_test_{ch}.npy",change_indices_test, allow_pickle=True)
+
+            np.save(f"./change_indices/change_percentage_train_{ch}.npy",change_percentage_train, allow_pickle=True)
+            np.save(f"./change_indices/change_percentage_test_{ch}.npy",change_percentage_test, allow_pickle=True)
+
+    else:
+        print("Loading Old Indices")
+        change_indices_train = np.load(f"./change_indices/change_indices_train_{ch}.npy" , allow_pickle=True)
+        change_indices_test = np.load(f"./change_indices/change_indices_test_{ch}.npy",allow_pickle=True)
+        
+        change_percentage_train = np.load(f"./change_indices/change_percentage_train_{ch}.npy",allow_pickle=True)
+        change_percentage_test = np.load(f"./change_indices/change_percentage_test_{ch}.npy",allow_pickle=True)
+
+        print("Mean FPC for Training is {}and Test is {}".format(np.mean(change_percentage_train), np.mean(change_percentage_test)))
+
+    return change_indices_train, change_indices_test, change_percentage_train, change_percentage_test
+
+
+# import pandas as pd
+# results = pd.DataFrame([changes_train,changes_test], columns=no_of_channels, index=["Train","Test"])
+# results.to_csv('channel_analysis.csv')
+
+
+def weight_reset(m):
+    reset_parameters = getattr(m, "reset_parameters", None)
+    if callable(reset_parameters):
+        m.reset_parameters()
+
+        
 def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,save_path):
 
     rows = 1
@@ -191,7 +254,7 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
             initial_count = count
 
             if(_[0][7:] == str(battery)):
-                if(model.name =="Transformer"):
+                if(model.name == "Transformer"):
                     out,d = model(x)
                 else:
                     out = model(x)
@@ -201,10 +264,7 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
             if(initial_count==count and count >1):
                 break
         
-        if(battery>=100):
-            change_indices_battery = battery - 100
-        else:
-            change_indices_battery = battery
+        
 
         l = nn.MSELoss()
         l1 = nn.L1Loss()
@@ -214,7 +274,7 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
             mae_loss += l1(torch.Tensor(pred),torch.Tensor(actual))
             mape_loss += l2(torch.Tensor(pred),torch.Tensor(actual))
         
-        x = [change_indices[change_indices_battery]+i for i in range(len(pred))]
+        x = [change_indices[battery]+i for i in range(len(pred))]
         # print(len(discharge_capacities[battery][0]))
         ax[ind].plot(x,pred)
         ax[ind].plot(x,actual)
@@ -225,6 +285,7 @@ def plot_RUL(model,discharge_capacities,batteries,data_loader,change_indices,sav
     print("MSE= {}, MAE ={} , MAPE = {}".format(mse_loss/len(batteries),mae_loss/len(batteries),mape_loss/len(batteries)))
     
     plt.savefig(save_path+".png")
+
 
 
 
