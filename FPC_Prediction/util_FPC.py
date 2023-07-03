@@ -87,9 +87,9 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     plt.figure()
     if(plot):
-        rows = 4
+        rows = len(batteries)
         col  = 1
-        fig, ax = plt.subplots(rows,col,figsize=(10,6),sharex=True, sharey=True)
+        fig, ax = plt.subplots(len(batteries),col,figsize=(10,2*len(batteries)),sharex=True, sharey=True)
         ax = ax.flatten()
         plt.suptitle("FPC Prediction", fontsize = 20)
         # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -155,13 +155,13 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     return change_percentage, change_indices
 
-def get_change_indices(model,discharge_capacities,channels):
+def get_change_indices(model,discharge_capacities,channels,get_saved_indices, version):
 
     changes_train = []
     changes_test = []
     epochs = 50
     # os.mkdir("/kaggle/working/change_indices")
-    get_saved_indices = True
+
     ch = ''.join(map(str,channels))
     if(not get_saved_indices):
 
@@ -201,19 +201,19 @@ def get_change_indices(model,discharge_capacities,channels):
             if(os.path.exists("./change_indices") == False):
                 os.mkdir("./change_indices")
 
-            np.save(f"./change_indices/change_indices_train_{ch}.npy",change_indices_train, allow_pickle=True)
-            np.save(f"./change_indices/change_indices_test_{ch}.npy",change_indices_test, allow_pickle=True)
+            np.save(f"./change_indices/change_indices_train_{ch}_version{version}.npy",change_indices_train, allow_pickle=True)
+            np.save(f"./change_indices/change_indices_test_{ch}_version{version}.npy",change_indices_test, allow_pickle=True)
 
-            np.save(f"./change_indices/change_percentage_train_{ch}.npy",change_percentage_train, allow_pickle=True)
-            np.save(f"./change_indices/change_percentage_test_{ch}.npy",change_percentage_test, allow_pickle=True)
+            np.save(f"./change_indices/change_percentage_train_{ch}_version{version}.npy",change_percentage_train, allow_pickle=True)
+            np.save(f"./change_indices/change_percentage_test_{ch}_version{version}.npy",change_percentage_test, allow_pickle=True)
 
     else:
         print("Loading Old Indices")
-        change_indices_train = np.load(f"./change_indices/change_indices_train_{ch}.npy" , allow_pickle=True)
-        change_indices_test = np.load(f"./change_indices/change_indices_test_{ch}.npy",allow_pickle=True)
+        change_indices_train = np.load(f"./change_indices/change_indices_train_{ch}_version{version}.npy" , allow_pickle=True)
+        change_indices_test = np.load(f"./change_indices/change_indices_test_{ch}_version{version}.npy",allow_pickle=True)
         
-        change_percentage_train = np.load(f"./change_indices/change_percentage_train_{ch}.npy",allow_pickle=True)
-        change_percentage_test = np.load(f"./change_indices/change_percentage_test_{ch}.npy",allow_pickle=True)
+        change_percentage_train = np.load(f"./change_indices/change_percentage_train_{ch}_version{version}.npy",allow_pickle=True)
+        change_percentage_test = np.load(f"./change_indices/change_percentage_test_{ch}_version{version}.npy",allow_pickle=True)
 
         print("Mean FPC for Training is {}and Test is {}".format(np.mean(change_percentage_train), np.mean(change_percentage_test)))
 

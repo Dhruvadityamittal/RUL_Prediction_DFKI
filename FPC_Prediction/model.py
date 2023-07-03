@@ -9,7 +9,7 @@ class CNN_Model(nn.Module):
     
     def __init__(self,input_size, channels):
         super(CNN_Model, self).__init__()
-        self.name = "CNN"
+        self.name = "CNN_FPC"
         filter_size_1 = 21
         filter_size=21
         
@@ -73,7 +73,46 @@ class CNN_Model(nn.Module):
         out = self.sigmoid(out)
         return out
     
+class LSTM_Model(nn.Module):
+    
+    def __init__(self,input_size,channels):
+        super(LSTM_Model, self).__init__()
+        self.name = "LSTM_FPC"
+        hidden_size1 = input_size
+        hidden_size2 = input_size
+        num_layers = 4
+        self.LSTM1 = nn.LSTM(input_size = input_size, hidden_size = hidden_size1, num_layers = num_layers,batch_first=True)
+        self.LSTM2 = nn.LSTM(input_size = input_size, hidden_size = hidden_size2, num_layers = num_layers,batch_first=True)
 
+        self.flatten = nn.Flatten()
+        self.Linear1 = nn.Linear(hidden_size2*channels,128)
+        self.Linear2 = nn.Linear(128,1)
+        self.Linear3 = nn.Linear(50,1)
+        self.relu    = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self,x):
+        
+        # self.h0 = torch.randn(4, x.size(0), 100)
+        # self.c0 = torch.randn(4, x.size(0), 100)
+        
+        # x= x.view(x.shape[0],channels,x.shape[1])
+        # out, (hn, cn) = self.LSTM(x, (self.h0, self.c0))
+
+        out, (_, _) = self.LSTM1(x)
+        out,(_,_) = self.LSTM2(out)
+        
+        out = self.flatten(out)
+        out = self.relu(out)
+        out = self.Linear1(out)
+        out = self.relu(out)
+        out = self.Linear2(out)
+#         out = self.relu(out)
+#         out = self.Linear3(out)
+        out = self.sigmoid(out)
+
+
+        return out
 
 class CNN_Model_RUL(nn.Module):
     
@@ -150,7 +189,6 @@ class LSTM_Model_RUL(nn.Module):
         self.name = "LSTM"
         hidden_size1 = input_size
         hidden_size2 = input_size
-        print(input_size)
         num_layers = 4
         self.LSTM1 = nn.LSTM(input_size = input_size, hidden_size = hidden_size1, num_layers = num_layers,batch_first=True)
         self.LSTM2 = nn.LSTM(input_size = input_size, hidden_size = hidden_size2, num_layers = num_layers,batch_first=True)

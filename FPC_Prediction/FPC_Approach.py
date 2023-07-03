@@ -1,7 +1,7 @@
 import os
 os.chdir(".")
 
-from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder
+from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model
 from load_data import get_data, get_data_RUL_scenario1, get_discharge_capacities, get_dirs, NormalizeData, get_data_RUL_scenario2
 from dataloader import battery_dataloader, battery_dataloader_RUL, get_RUL_dataloader
 from import_file import *
@@ -39,30 +39,44 @@ print("Shape of a batch    :",next(iter(train_dataloader))[0].shape)
 
 
 
-epochs = 100
+epochs = 4
 window_size = 50
 learning_rate = 0.001
 
 pretrained = True
-load_pretrained = True
-version = 1
+load_pretrained = False
+version = 2
 
 ch = ''.join(map(str,channels))
 
+# model = CNN_Model(window_size,len(channels))
+model = LSTM_Model(window_size,len(channels))
+
 model_dir = "./Weights/FPC/"
-model_path = f'{model_dir}/model_f{ch}_f{window_size}_f{version}.pth'
+model_path = f'{model_dir}/model_f{ch}_f{window_size}_f{model.name}_f{version}.pth'
+
+if(load_pretrained):
+    model.load_state_dict(torch.load(model_path, map_location=device ))
+
+model.to(device)
+
+
+optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate, betas= (0.9, 0.99))
+criterion = nn.BCELoss()
+
+early_stopping = EarlyStopping(patience=20)
 
 
 if(pretrained):
-    model = CNN_Model(window_size,len(channels))
+    
     model.load_state_dict(torch.load(model_path, map_location=device ))
     model.to(device)
 else:
-    model = train_model(window_size,len(channels),train_dataloader,epochs,learning_rate,load_pretrained,model_path,version)
+    model = train_model(model, optimizer, criterion, early_stopping,train_dataloader,epochs,learning_rate,load_pretrained,model_path,version)
 
-
+version = 2
 # Get Change Indices
-change_indices_train,change_indices_test, _, _ = get_change_indices(model,discharge_capacities,channels)
+change_indices_train,change_indices_test, _, _ = get_change_indices(model,discharge_capacities,channels,get_saved_indices = True, version = 2)
 change_indices_all = np.concatenate((change_indices_train,change_indices_test))
 
 

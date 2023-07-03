@@ -15,24 +15,11 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 
-def train_model(window_size,channels,train_dataloader,epochs,lr, load_pretrained, path,version):
+def train_model(model, optimizer, criterion, early_stopping,train_dataloader,epochs,lr, load_pretrained, path,version):
     
     
 
-    
-    model = CNN_Model(window_size,channels)
-    if(load_pretrained):
-        model.load_state_dict(torch.load(path, map_location=device ))
-
-    
-    model.to(device)
-
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr = lr, betas= (0.9, 0.99))
-    criterion = nn.BCELoss()
     metric = BinaryAccuracy().to(device)
-    early_stopping = EarlyStopping(patience=20)
-
 
     for epoch in range(epochs):
         total_loss = 0
@@ -158,6 +145,7 @@ def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion
                                                                                               change_indices, parameters["window_size"],
                                                                                                 parameters["stride"],parameters["channels"] ,scenario)
         
+        early_stopping = EarlyStopping(patience=50)
         model = train_model_RUL(model, criterion, optimizer,train_dataloader_RUL,parameters["epochs"],
                                 parameters["learning_rate"],load_pretrained,path,early_stopping,version)
         
