@@ -14,11 +14,11 @@ def get_discharge_capacities():
       discharge_capacities = np.load(r"Datasets/discharge_capacity.npy", allow_pickle=True)
       return  discharge_capacities.tolist()
 
-def get_data(discharge_capacities,percentage,window_size,stride,channels,type):
+def get_data(discharge_capacities,percentage,window_size,stride,channels,type, name_start):
 
     train_data =[]
     FPC_data  =[]
-    name = 0
+    name = name_start
     test_data = []
     FPC_data_dict ={}
     test_data_dict = {}
@@ -59,7 +59,7 @@ def get_data(discharge_capacities,percentage,window_size,stride,channels,type):
         return train_data,FPC_data,FPC_data_dict
 
     else:
-        name = 100
+        name = name_start
         for battery in discharge_capacities:
             
             battery = np.asarray([battery[i] for i in channels])

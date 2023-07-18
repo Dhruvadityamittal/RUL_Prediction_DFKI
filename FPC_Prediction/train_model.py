@@ -132,13 +132,15 @@ def test_model_RUL(model_RUL, criterion, test_dataloader):
     print("\n\nTest loss = {} \n\n".format(total_loss/total))
             
 
-def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion, optimizer, early_stopping, load_pretrained, path,
+def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion, 
+                    optimizer, early_stopping, load_pretrained, path,
                      scenario, parameters,version):
     for fold in range(n_folds):
         print("*********************  Fold = {}  ********************* \n\n".format(fold))
         test_batteries = [i for i in range(len(discharge_capacities)) if i % n_folds == fold]
         train_batteries = [i for i in range(len(discharge_capacities)) if i not in test_batteries]
         
+    
 
         train_dataloader_RUL, train_dataloader_RUL_temp, test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, 
                                                                                               train_batteries, test_batteries, 
@@ -153,7 +155,8 @@ def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion
         if(fold !=n_folds-1):
             model.apply(weight_reset)
         else:
-            return model, test_dataloader_RUL, test_batteries
+            
+            return model, test_dataloader_RUL, test_batteries, train_batteries
     
         
 

@@ -155,7 +155,7 @@ def get_fpc(model,batteries,discharge_capacities,data_loader,plot,show_FPC_curve
     
     return change_percentage, change_indices
 
-def get_change_indices(model,discharge_capacities,channels,get_saved_indices, version):
+def get_change_indices(model,discharge_capacities,channels,get_saved_indices, version, name_start_train, name_start_test,dataset):
 
     changes_train = []
     changes_test = []
@@ -171,8 +171,8 @@ def get_change_indices(model,discharge_capacities,channels,get_saved_indices, ve
             window_size = 50    # window size
             stride = 1          # stride
 
-            train_data,FPC_data,FPC_data_dict = get_data(discharge_capacities[:100],percentage,window_size,stride,channels,type = "train")
-            test_data,test_data_dict  = get_data(discharge_capacities[100:],None,window_size,stride,channels,type= "test")
+            train_data,FPC_data,FPC_data_dict = get_data(discharge_capacities[:name_start_test],percentage,window_size,stride,channels,type = "train",name_start = name_start_train)
+            test_data,test_data_dict  = get_data(discharge_capacities[name_start_test:],None,window_size,stride,channels,type= "test", name_start = name_start_test)
 
             obj_train  = battery_dataloader(train_data)
             obj_FPC  = battery_dataloader(FPC_data)
@@ -185,8 +185,8 @@ def get_change_indices(model,discharge_capacities,channels,get_saved_indices, ve
             print("Shape of a batch    :",next(iter(train_dataloader))[0].shape)
     
 
-            batteries_train =[i for i in range (100)]
-            batteries_test= [i+100 for i in range(0,24)]
+            batteries_train =[i for i in range (name_start_test)]
+            batteries_test= [i+name_start_test for i in range(0,len(discharge_capacities[name_start_test:]))]
 
             change_percentage_train, change_indices_train =  get_fpc(model,batteries_train,discharge_capacities,FPC_data_dict,False, False,True,"")
             change_percentage_test, change_indices_test =  get_fpc(model,batteries_test,discharge_capacities,test_data_dict,False, False,False,"")
@@ -201,19 +201,20 @@ def get_change_indices(model,discharge_capacities,channels,get_saved_indices, ve
             if(os.path.exists("./change_indices") == False):
                 os.mkdir("./change_indices")
 
-            np.save(f"./change_indices/change_indices_train_{ch}_version{version}.npy",change_indices_train, allow_pickle=True)
-            np.save(f"./change_indices/change_indices_test_{ch}_version{version}.npy",change_indices_test, allow_pickle=True)
+            np.save(f"./change_indices/change_indices_{dataset}_train_{ch}_version{version}.npy",change_indices_train, allow_pickle=True)
+            np.save(f"./change_indices/change_indices_{dataset}_test_{ch}_version{version}.npy",change_indices_test, allow_pickle=True)
 
-            np.save(f"./change_indices/change_percentage_train_{ch}_version{version}.npy",change_percentage_train, allow_pickle=True)
-            np.save(f"./change_indices/change_percentage_test_{ch}_version{version}.npy",change_percentage_test, allow_pickle=True)
+            np.save(f"./change_indices/change_percentage_{dataset}_train_{ch}_version{version}.npy",change_percentage_train, allow_pickle=True)
+            np.save(f"./change_indices/change_percentage_{dataset}_test_{ch}_version{version}.npy",change_percentage_test, allow_pickle=True)
 
     else:
         print("Loading Old Indices")
-        change_indices_train = np.load(f"./change_indices/change_indices_train_{ch}_version{version}.npy" , allow_pickle=True)
-        change_indices_test = np.load(f"./change_indices/change_indices_test_{ch}_version{version}.npy",allow_pickle=True)
+
+        change_indices_train = np.load(f"./change_indices/change_indices_{dataset}_train_{ch}_version{version}.npy" , allow_pickle=True)
+        change_indices_test = np.load(f"./change_indices/change_indices_{dataset}_test_{ch}_version{version}.npy",allow_pickle=True)
         
-        change_percentage_train = np.load(f"./change_indices/change_percentage_train_{ch}_version{version}.npy",allow_pickle=True)
-        change_percentage_test = np.load(f"./change_indices/change_percentage_test_{ch}_version{version}.npy",allow_pickle=True)
+        change_percentage_train = np.load(f"./change_indices/change_percentage_{dataset}_train_{ch}_version{version}.npy",allow_pickle=True)
+        change_percentage_test = np.load(f"./change_indices/change_percentage_{dataset}_test_{ch}_version{version}.npy",allow_pickle=True)
 
         print("Mean FPC for Training is {}and Test is {}".format(np.mean(change_percentage_train), np.mean(change_percentage_test)))
 

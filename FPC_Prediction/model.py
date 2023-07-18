@@ -226,10 +226,10 @@ class LSTM_Model_RUL(nn.Module):
 
     
 class Autoencoder(nn.Module):
-    def __init__(self, input_size=16, hidden_dim=8, noise_level=0.01):
+    def __init__(self,channels, input_size=16, hidden_dim=8, noise_level=0.01):
         super(Autoencoder, self).__init__()
         self.input_size, self.hidden_dim, self.noise_level = input_size, hidden_dim, noise_level
-        self.conv1 = nn.Conv1d(7,16,kernel_size = 21, stride=1,padding=21//2)
+        self.conv1 = nn.Conv1d(channels,16,kernel_size = 21, stride=1,padding=21//2)
         self.max_pool = nn.MaxPool1d(2,stride =2, padding =1)
         self.conv2 = nn.Conv1d(16,32,kernel_size = 21, stride=1,padding=21//2)
         
@@ -239,7 +239,7 @@ class Autoencoder(nn.Module):
         self.flatten = nn.Flatten(start_dim=1)
         self.relu  = nn.ReLU()
         self.en_conv1 = nn.Conv1d(32,16,kernel_size = 21, stride=1,padding=21//2)
-        self.en_conv2 = nn.Conv1d(16,7,kernel_size = 21, stride=1,padding=21//2)
+        self.en_conv2 = nn.Conv1d(16,channels,kernel_size = 21, stride=1,padding=21//2)
     
         
     def encoder(self, x):
@@ -301,7 +301,7 @@ class PositionalEncoding(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, feature_size=16, hidden_dim=32, num_layers=2, nhead=8, dropout=0.1, noise_level=0.01):
+    def __init__(self, channels, feature_size=16, hidden_dim=32, num_layers=2, nhead=8, dropout=0.1, noise_level=0.01):
         super(Net, self).__init__()
         self.name = "Transformer"
         self.auto_hidden = int(feature_size/2)
@@ -315,7 +315,7 @@ class Net(nn.Module):
         self.linear3 = nn.Linear(64, 1)
 #         self.LayerNorm = nn.LayerNorm(1)
         
-        self.autoencoder = Autoencoder(input_size=feature_size, hidden_dim=self.auto_hidden, noise_level=noise_level)
+        self.autoencoder = Autoencoder(channels,input_size=feature_size, hidden_dim=self.auto_hidden, noise_level=noise_level)
         self.sigmoid = nn.Sigmoid()
         self.relu    = nn.ReLU()
         self.fc1 = nn.Linear(16*50, 8)
