@@ -8,6 +8,7 @@ from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new
 import time
 import numpy as np
 from dataloader import get_RUL_dataloader
+from torchmetrics import MeanAbsolutePercentageError
 
 
 
@@ -112,34 +113,60 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,epochs,lr,lo
 def test_model_RUL(model_RUL, criterion, test_dataloader):
     model_RUL.eval()
     
-    total_loss = 0
-    total = 0
+    total_loss_mse = 0
+    total_mse = 0
+    total_loss_mae = 0
+    total_mae = 0
+    total_loss_mape = 0
+    total_mape = 0
+    
     total_batches = 0
+
+    
+
+    l1 = nn.L1Loss().to(device)
+    l2 = MeanAbsolutePercentageError().to(device)
     for x, y ,_ in test_dataloader:
         x = x.to(device=device)
         y = y.to(device=device)
         
         if(model_RUL.name == "Transformer"):
             out,d = model_RUL(x)
-            loss = criterion(out,y.unsqueeze(1))  + 0*criterion(d,x)
+            loss_mse = criterion(out,y.unsqueeze(1))  + 0*criterion(d,x)
+            loss_mae = l1(out,y.unsqueeze(1))  + 0*l1(d,x)
+            loss_mape = l2(out,y.unsqueeze(1))  + 0*l2(d,x)
+
         else:
             out =  model_RUL(x)
-            loss = criterion(out,y.unsqueeze(1))
+            loss_mse = criterion(out,y.unsqueeze(1))
+            loss_mae = l1(out,y.unsqueeze(1))  
+            loss_mape = l2(out,y.unsqueeze(1))
 
-        total_loss += loss.item() * x.size()[0]
-        total += x.size()[0]
+
+        total_loss_mse += loss_mse.item() * x.size()[0]
+        total_mse += x.size()[0]
+
+        total_loss_mae += loss_mae.item() * x.size()[0]
+        total_mae += x.size()[0]
+
+        total_loss_mape += loss_mape.item() * x.size()[0]
+        total_mape += x.size()[0]
+
         total_batches +=1
-    print("\n\nTest loss = {} \n\n".format(total_loss/total))
+    print("\n\nTest loss : MSE = {}, MAE = {}, MAPE = {} \n\n".format(total_loss_mse/total_mse, 
+                                                                      total_loss_mae/total_mae,
+                                                                        total_loss_mape/total_mape))
             
 
 def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion, 
                     optimizer, early_stopping, load_pretrained, path,
-                     scenario, parameters,version):
+                     scenario, parameters,version,dataset):
     for fold in range(n_folds):
         print("*********************  Fold = {}  ********************* \n\n".format(fold))
         test_batteries = [i for i in range(len(discharge_capacities)) if i % n_folds == fold]
         train_batteries = [i for i in range(len(discharge_capacities)) if i not in test_batteries]
         
+        fold_path = path[:-10]+"Fold="+str(fold)+".pth"
     
 
         train_dataloader_RUL, train_dataloader_RUL_temp, test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, 
@@ -149,9 +176,13 @@ def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion
         
         early_stopping = EarlyStopping(patience=50)
         model = train_model_RUL(model, criterion, optimizer,train_dataloader_RUL,parameters["epochs"],
-                                parameters["learning_rate"],load_pretrained,path,early_stopping,version)
+                                parameters["learning_rate"],load_pretrained,fold_path,early_stopping,version)
         
         test_model_RUL(model,criterion,test_dataloader_RUL)
+        
+        np.save(f"./Test_data/test_batteries_{dataset}_{model.name}_fold{fold}.npy", test_batteries, allow_pickle=True)
+        np.save(f"./Test_data/train_batteries_{dataset}_{model.name}_fold{fold}.npy", train_batteries, allow_pickle=True)
+
         if(fold !=n_folds-1):
             model.apply(weight_reset)
         else:

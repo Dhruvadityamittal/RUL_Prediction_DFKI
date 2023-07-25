@@ -9,7 +9,7 @@ class CNN_Model(nn.Module):
     
     def __init__(self,input_size, channels):
         super(CNN_Model, self).__init__()
-        self.name = "CNN_FPC"
+        self.name = "CNN_Classifier"
         filter_size_1 = 21
         filter_size=21
         
@@ -77,7 +77,7 @@ class LSTM_Model(nn.Module):
     
     def __init__(self,input_size,channels):
         super(LSTM_Model, self).__init__()
-        self.name = "LSTM_FPC"
+        self.name = "LSTM_Classifier"
         hidden_size1 = input_size
         hidden_size2 = input_size
         num_layers = 4

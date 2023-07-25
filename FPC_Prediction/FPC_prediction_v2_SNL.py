@@ -52,9 +52,10 @@ test_dataloader_SNL = DataLoader(obj_test_SNL, batch_size=1,shuffle=False)
 print("Shape of a batch    :",next(iter(train_dataloader_SNL))[0].shape)
 
 
-device = "cpu"
-epochs = 2
-learning_rate = 0.001
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(device)
+epochs = 10
+learning_rate = 0.01
 
 pretrained = True
 load_pretrained = False
@@ -63,10 +64,11 @@ version = 1
 ch = ''.join(map(str,channels))
 
 # model = CNN_Model(window_size,len(channels))
+dataset = "SNL"
 model = LSTM_Model(window_size,len(channels))
-
+fld = 1
 model_dir = "./Weights/FPC/"
-model_path = f'{model_dir}/model_SNL_f{ch}_f{window_size}_f{model.name}_f{version}.pth'
+model_path = f'{model_dir}/{dataset}_{model.name}_FPC_Channels={ch}_WindowSize={window_size}_Version={version}.pth'
 
 if(load_pretrained):
     model.load_state_dict(torch.load(model_path, map_location=device ))
@@ -103,9 +105,9 @@ c_RUL = ''.join(map(str,channels_RUL))
 
 n_folds = 5
 scenario = 1
-# learning_rate = 0.01
-learning_rate = 0.0001
-epochs = 10
+epochs = 1
+
+
 
 parameters = {
     "window_size" : window_size,
@@ -117,10 +119,16 @@ parameters = {
 
 
 
-model_RUL = LSTM_Model_RUL(window_size,len(channels))  # LSTM Model
-# model_RUL = Net(len(channels))    # Transformer Model
+# model_RUL = LSTM_Model_RUL(window_size,len(channels))  # LSTM Model
+model_RUL = Net(len(channels))    # Transformer Model
 #model_RUL = CNN_Model_RUL(window_size,channels)    # CNN Model
+print("Training RUL on :", model_RUL.name)
 
+if(model_RUL.name == "LSTM"):
+    learning_rate = 0.0001
+else:
+    learning_rate = 0.0001
+print("Learning Rate :", learning_rate)
 optimizer = torch.optim.Adam(model_RUL.parameters(), lr = learning_rate, betas= (0.9, 0.99))
 # criterion = nn.L1Loss()
 criterion = nn.MSELoss()
@@ -131,7 +139,9 @@ pretrained_RUL_scenario1 = False
 load_pretrained_scenario1  = False
 
 model_dir_scenario1 = "./Weights/Scenario1/"
-model_path_scenario1 = f'{model_dir_scenario1}/model_SNL_f{model_RUL.name}_f{c_RUL}_f{window_size_RUL}_f{version}.pth'
+model_path_scenario1 = f'{model_dir_scenario1}/{dataset}_f{model_RUL.name}_RUL_Channels={c_RUL}_WindowSize={window_size_RUL}_Version={version}_Fold={fld}.pth'
+
+
 
 if(pretrained_RUL_scenario1):
     print("Loading a Pre-trained Model")
@@ -145,11 +155,11 @@ else:
         print("Training further on already trained model")
         model_RUL.load_state_dict(torch.load(model_path_scenario1,map_location= device))
         model_RUL, test_dataloader_RUL, test_batteries = perform_n_folds(model_RUL,n_folds,discharge_capacities_SNL,change_indices_all,criterion, optimizer, early_stopping,
-                    pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version)
+                    pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version,dataset)
     else:
         print("Training a new Model")
         model_RUL, test_dataloader_RUL, test_batteries, train_batteries = perform_n_folds(model_RUL,n_folds,discharge_capacities_SNL,change_indices_all,criterion, optimizer, early_stopping,
-                    pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version)
+                    pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version,dataset)
         np.save(f"./Test_data/test_batteries_SNL.npy", test_batteries, allow_pickle=True)
         np.save(f"./Test_data/train_batteries_SNL.npy", train_batteries, allow_pickle=True)
 
