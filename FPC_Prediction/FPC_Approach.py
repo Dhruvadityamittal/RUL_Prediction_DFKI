@@ -2,17 +2,17 @@ import os
 os.chdir(".")
 
 from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model
-from load_data import get_data, get_data_RUL_scenario1, get_discharge_capacities, get_dirs, NormalizeData, get_data_RUL_scenario2
+from load_data import get_data, get_data_RUL_scenario1, get_discharge_capacities_MIT, get_dirs, NormalizeData, get_data_RUL_scenario2
 from dataloader import battery_dataloader, battery_dataloader_RUL, get_RUL_dataloader
 from import_file import *
 from train_model import train_model, train_model_RUL, test_model_RUL, perform_n_folds
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 from util_FPC import get_fpc_window, get_data, get_fpc, get_change_indices, EarlyStopping, plot_RUL, weight_reset
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print("Training on ", device)
 
 get_dirs()
-discharge_capacities = get_discharge_capacities()
+discharge_capacities = get_discharge_capacities_MIT()
 
 
 percentage  = 0.10  # 10 percent data
@@ -51,6 +51,7 @@ version = 1
 
 ch = ''.join(map(str,channels))
 dataset = "MIT"
+print("Dataset :",dataset)
 
 # model = CNN_Model(window_size,len(channels))
 model = LSTM_Model(window_size,len(channels))
@@ -111,13 +112,13 @@ parameters = {
 
 
 
-model_RUL = LSTM_Model_RUL(window_size,len(channels))  # LSTM Model
-# model_RUL = Net(len(channels))    # Transformer Model
+# model_RUL = LSTM_Model_RUL(window_size,len(channels))  # LSTM Model
+model_RUL = Net(len(channels))    # Transformer Model
 #model_RUL = CNN_Model_RUL(window_size,channels)    # CNN Model
 if(model_RUL.name == "LSTM"):
     learning_rate = 0.0001
 else:
-    learning_rate = 0.01
+    learning_rate = 0.001
 
 print("Learning Rate :", learning_rate)
 print("Training RUL on :", model_RUL.name)
@@ -137,16 +138,17 @@ model_path_scenario1 = f'{model_dir_scenario1}/{dataset}_f{model_RUL.name}_RUL_C
 if(pretrained_RUL_scenario1):
     print("Loading a Pre-trained Model")
     model_RUL.load_state_dict(torch.load(model_path_scenario1,map_location= device))
-    test_batteries = np.load("./Test_data/test_batteries.npy",allow_pickle=True)
-    train_batteries = np.load("./Test_data/train_batteries.npy",allow_pickle=True)
+    test_batteries = np.load(f"./Test_data/test_batteries_{dataset}_{model_RUL.name}_fold{fld}.npy",allow_pickle=True)
+    train_batteries = np.load(f"./Test_data/train_batteries_{dataset}_{model_RUL.name}_fold{fld}.npy",allow_pickle=True)
+
 else:
     if(load_pretrained_scenario1):
         print("Training further on already trained model")
         model_RUL.load_state_dict(torch.load(model_path_scenario1,map_location= device))
-        perform_n_folds(model_RUL,n_folds,discharge_capacities,change_indices_all,criterion, optimizer, early_stopping,
+        model_RUL, test_dataloader_RUL, test_batteries, train_batteries = perform_n_folds(model_RUL,n_folds,discharge_capacities,change_indices_all,criterion, optimizer, early_stopping,
                     pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version, dataset)
     else:
-        model_RUL, test_dataloader, test_batteries, train_batteries = perform_n_folds(model_RUL,n_folds,discharge_capacities,change_indices_all,criterion, optimizer, early_stopping,
+        model_RUL, test_dataloader_RUL, test_batteries, train_batteries = perform_n_folds(model_RUL,n_folds,discharge_capacities,change_indices_all,criterion, optimizer, early_stopping,
                     pretrained_RUL_scenario1, model_path_scenario1,scenario,parameters, version, dataset)
         np.save(f"./Test_data/test_batteries.npy", test_batteries, allow_pickle=True)
         np.save(f"./Test_data/train_batteries.npy", train_batteries, allow_pickle=True)
@@ -157,4 +159,4 @@ _, _,  test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, train_batt
                                               change_indices_all, parameters["window_size"],
                                               parameters["stride"],parameters["channels"] ,scenario)
 
-plot_RUL(model_RUL,discharge_capacities,test_batteries,test_dataloader,change_indices_all,"Outputs/scenario1_RUL_prediction_test")
+plot_RUL(model_RUL,discharge_capacities,test_batteries,model_RUL, test_dataloader_RUL, test_batteries, train_batteries,change_indices_all,"Outputs/scenario1_RUL_prediction_test")

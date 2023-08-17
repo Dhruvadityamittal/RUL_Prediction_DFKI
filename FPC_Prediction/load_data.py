@@ -10,9 +10,19 @@ def get_dirs():
             print("Creating Directory :", dir)
             os.mkdir(dir)
 
-def get_discharge_capacities():
+def get_discharge_capacities_MIT():
       discharge_capacities = np.load(r"Datasets/discharge_capacity.npy", allow_pickle=True)
       return  discharge_capacities.tolist()
+
+def get_discharge_capacities_HUST(fea_num):
+    discharge_capacities = np.load(f"./Datasets/snl_data_{fea_num}.npy",allow_pickle=True)
+    d = []
+    for battery_temp in discharge_capacities:
+        a = np.squeeze(battery_temp[0], axis = 1)     # Voltage/Current Features
+        b = np.expand_dims(battery_temp[1], axis =1)  # Discharge Capccity
+        c = np.concatenate((b,a), axis =1).T
+        d.append(c)
+    return d
 
 def get_data(discharge_capacities,percentage,window_size,stride,channels,type, name_start):
 

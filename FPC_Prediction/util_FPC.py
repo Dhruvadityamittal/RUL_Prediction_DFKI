@@ -195,7 +195,7 @@ def get_change_indices(model,discharge_capacities,channels,get_saved_indices, ve
             changes_train.append(np.mean(change_percentage_train))
             changes_test.append(np.mean(change_percentage_test))
 
-            print("Mean FPC for Training is {}and Test is {} :".format(np.mean(changes_train), np.mean(changes_test)))
+            print("Mean FPC for Training is {} and Test is {} :".format(np.mean(changes_train), np.mean(changes_test)))
             
             
             if(os.path.exists("./change_indices") == False):
@@ -216,7 +216,7 @@ def get_change_indices(model,discharge_capacities,channels,get_saved_indices, ve
         change_percentage_train = np.load(f"./change_indices/change_percentage_{dataset}_train_{ch}_version{version}.npy",allow_pickle=True)
         change_percentage_test = np.load(f"./change_indices/change_percentage_{dataset}_test_{ch}_version{version}.npy",allow_pickle=True)
 
-        print("Mean FPC for Training is {}and Test is {}".format(np.mean(change_percentage_train), np.mean(change_percentage_test)))
+        print("Mean FPC for Training is {} and Test is {}".format(np.mean(change_percentage_train), np.mean(change_percentage_test)))
 
     return change_indices_train, change_indices_test, change_percentage_train, change_percentage_test
 

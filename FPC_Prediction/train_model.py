@@ -9,6 +9,7 @@ import time
 import numpy as np
 from dataloader import get_RUL_dataloader
 from torchmetrics import MeanAbsolutePercentageError
+import random
 
 
 
@@ -48,7 +49,7 @@ def train_model(model, optimizer, criterion, early_stopping,train_dataloader,epo
             total_batches +=1
 
 
-        print("Loss = {} Accuarcy ={}".format(total_loss/total,acc/total_batches))
+        print("Epoch = {} : Loss = {}, Accuarcy = {}".format(epoch, total_loss/total,acc/total_batches))
 
         evaluation = total_loss/total
         early_stopping(evaluation, model, path)
@@ -63,19 +64,19 @@ def train_model(model, optimizer, criterion, early_stopping,train_dataloader,epo
 
 
 
-def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,epochs,lr,load_pretrained,path,early_stopping,version):
+def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,val_dataloader,epochs,lr,load_pretrained,path,early_stopping,version):
     times = []
     model_RUL.to(device) 
-    model_RUL.train()
+    
 
     for epoch in range(epochs):
-        start = time.time()
+        model_RUL.train()
         total_loss = 0
-        
         model_RUL.requires_grad_(True)
         total_loss = 0
         total = 0
         total_batches = 0
+        start = time.time()
         for x, y ,_ in train_dataloader:
             x = x.to(device=device)
             y = y.to(device=device)
@@ -97,9 +98,10 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,epochs,lr,lo
 
         end = time.time()
         times.append(end-start)
-        print("Epoch = {}, Loss = {} ".format(epoch, total_loss/total))
+        val_mse, val_mae, val_mape = test_model_RUL(model_RUL, criterion, val_dataloader, show_output= False)
+        print("Epoch = {}, Train Loss = {}, Val MSE = {}, MAE = {}, MAPE = {}".format(epoch, total_loss/total,val_mse, val_mae, val_mape))
         
-        evaluation = total_loss/total
+        evaluation = 0.75*val_mse + 0.15*val_mae + 0.20*val_mape 
         early_stopping(evaluation, model_RUL,path)
 
         if early_stopping.early_stop:
@@ -110,8 +112,8 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,epochs,lr,lo
     return model_RUL
 
 
-def test_model_RUL(model_RUL, criterion, test_dataloader):
-    model_RUL.eval()
+def test_model_RUL(model_RUL, criterion, test_dataloader, show_output):
+    # model_RUL.eval()
     
     total_loss_mse = 0
     total_mse = 0
@@ -153,9 +155,13 @@ def test_model_RUL(model_RUL, criterion, test_dataloader):
         total_mape += x.size()[0]
 
         total_batches +=1
-    print("\n\nTest loss : MSE = {}, MAE = {}, MAPE = {} \n\n".format(total_loss_mse/total_mse, 
+
+    if(show_output):
+        print("\n\nTest loss : MSE = {}, MAE = {}, MAPE = {} \n\n".format(total_loss_mse/total_mse, 
                                                                       total_loss_mae/total_mae,
                                                                         total_loss_mape/total_mape))
+    
+    return total_loss_mse/total_mse, total_loss_mae/total_mae, total_loss_mape/total_mape
             
 
 def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion, 
@@ -165,29 +171,29 @@ def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion
         print("*********************  Fold = {}  ********************* \n\n".format(fold))
         test_batteries = [i for i in range(len(discharge_capacities)) if i % n_folds == fold]
         train_batteries = [i for i in range(len(discharge_capacities)) if i not in test_batteries]
+        val_batteries = random.sample(train_batteries,int(0.1*len(train_batteries)))
+        train_batteries = [i for i in range(len(discharge_capacities)) if i not in val_batteries]
         
-        fold_path = path[:-10]+"Fold="+str(fold)+".pth"
+        fold_path = path[:-10]+"_Fold"+str(fold)+".pth"
     
-
-        train_dataloader_RUL, train_dataloader_RUL_temp, test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, 
-                                                                                              train_batteries, test_batteries, 
+        train_dataloader_RUL, train_dataloader_RUL_temp, val_dataloder_RUL, test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, 
+                                                                                              train_batteries, val_batteries, test_batteries, 
                                                                                               change_indices, parameters["window_size"],
                                                                                                 parameters["stride"],parameters["channels"] ,scenario)
         
-        early_stopping = EarlyStopping(patience=50)
-        model = train_model_RUL(model, criterion, optimizer,train_dataloader_RUL,parameters["epochs"],
+        early_stopping = EarlyStopping(patience=100)
+        model = train_model_RUL(model, criterion, optimizer,train_dataloader_RUL,val_dataloder_RUL,parameters["epochs"],
                                 parameters["learning_rate"],load_pretrained,fold_path,early_stopping,version)
         
-        test_model_RUL(model,criterion,test_dataloader_RUL)
-        
+        test_model_RUL(model,criterion,test_dataloader_RUL,show_output=True)
         np.save(f"./Test_data/test_batteries_{dataset}_{model.name}_fold{fold}.npy", test_batteries, allow_pickle=True)
         np.save(f"./Test_data/train_batteries_{dataset}_{model.name}_fold{fold}.npy", train_batteries, allow_pickle=True)
-
+        np.save(f"./Test_data/val_batteries_{dataset}_{model.name}_fold{fold}.npy", train_batteries, allow_pickle=True)
         if(fold !=n_folds-1):
             model.apply(weight_reset)
         else:
             
-            return model, test_dataloader_RUL, test_batteries, train_batteries
+            return model, test_dataloader_RUL, test_batteries, train_batteries, val_batteries
     
         
 

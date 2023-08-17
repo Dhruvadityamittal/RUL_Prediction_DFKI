@@ -15,4 +15,4 @@ module load anaconda3/latest
 . $ANACONDA_HOME/etc/profile.d/conda.sh
 
 conda activate RUL_Prediction
-python /home/dmittal/Desktop/RUL_Prediction_DFKI/FPC_Prediction/FPC_Approach.py --processes $SLURM_NTASKS --threads $SLURM_CPUS_PER_TASK "$@"
+python /home/dmittal/Desktop/RUL_Prediction_DFKI/FPC_Prediction/FPC_prediction_v2_combined_RUL.py --processes $SLURM_NTASKS --threads $SLURM_CPUS_PER_TASK "$@"
