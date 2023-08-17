@@ -13,16 +13,15 @@ print("Training on ", device)
 
 # dataset = "HUST"
 dataset = "MIT"
-
-RUL_model_name = "LSTM"
-# RUL_model_name = "Net"
+# RUL_model_name = "LSTM"
+RUL_model_name = "Net"
 
 print("Using Dataset :", dataset)
 
 percentage  = 0.10  # 10 percent data
 window_size_FPC = 50    # window size
 stride_FPC = 1          # stride
-window_size_RUL = 50
+window_size_RUL = 64
 stride_RUL =1
 
 get_dirs()
@@ -45,8 +44,8 @@ if(dataset == "MIT"):
         model_RUL = LSTM_Model_RUL(window_size_RUL,len(channels))  # LSTM Model
         learning_rate_RUL = 0.0001
     elif(RUL_model_name == "Net"):
-        model_RUL = Net(len(channels))    # Transformer Model
-        learning_rate_RUL = 0.001      
+        model_RUL = Net(len(channels), feature_size=window_size_RUL)    # Transformer Model
+        learning_rate_RUL = 0.0001      
     else:
         model_RUL = CNN_Model_RUL(window_size_RUL,len(channels_RUL))  # CNN Model
         learning_rate_RUL = 0.01      
@@ -121,17 +120,17 @@ else:
 version = 1
 print("Version", version)
 # Get Change Indices
-change_indices_train,change_indices_test, _, _ = get_change_indices(model_FPC,discharge_capacities,channels,get_saved_indices = False, version = 1, name_start_train = name_start_train,name_start_test= name_start_test , dataset= "MIT") 
+change_indices_train,change_indices_test, _, _ = get_change_indices(model_FPC,discharge_capacities,channels,get_saved_indices = True, version = 1, name_start_train = name_start_train,name_start_test= name_start_test , dataset= "MIT") 
 change_indices_all = np.concatenate((change_indices_train,change_indices_test))
 
 
 
-#Inference on Test and Train
-batteries = [i for i in range(0,24)]
-_,_ = get_fpc(model_FPC,batteries,discharge_capacities,FPC_data_dict,True, True,True,"./Outputs/FPC_Training_" + dataset + "_train_new_latest")
+# Inference on Test and Train
+# batteries = [i for i in range(0,24)]
+# _,_ = get_fpc(model_FPC,batteries,discharge_capacities,FPC_data_dict,True, True,True,"./Outputs/FPC_Training_" + dataset + "_train_new_latest")
 
-batteries = [i+name_start_test for i in range(0,len(discharge_capacities)-name_start_test)]
-_,_= get_fpc(model_FPC,batteries,discharge_capacities,test_data_dict,True, False,False,"Outputs/FPC_Testing_" + dataset + "_test_new_latest")
+# batteries = [i+name_start_test for i in range(0,len(discharge_capacities)-name_start_test)]
+# _,_= get_fpc(model_FPC,batteries,discharge_capacities,test_data_dict,True, False,False,"Outputs/FPC_Testing_" + dataset + "_test_new_latest")
 
 # exit()
 # **************************************************************************

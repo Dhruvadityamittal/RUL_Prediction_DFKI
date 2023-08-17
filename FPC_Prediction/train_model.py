@@ -68,12 +68,18 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,val_dataload
     times = []
     model_RUL.to(device) 
     
+    MAE_loss = nn.L1Loss().to(device)
+    MSE_loss = nn.MSELoss().to(device)
+    MAPE_loss = MeanAbsolutePercentageError().to(device)
 
     for epoch in range(epochs):
         model_RUL.train()
-        total_loss = 0
         model_RUL.requires_grad_(True)
         total_loss = 0
+        total_MAE_loss = 0
+        total_MSE_loss = 0
+        total_MAPE_loss = 0
+        total_recon_loss = 0
         total = 0
         total_batches = 0
         start = time.time()
@@ -83,25 +89,44 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,val_dataload
             
             if(model_RUL.name == "Transformer"):
                 out,d = model_RUL(x)
-                loss = criterion(out,y.unsqueeze(1))  + 0*criterion(d,x)
+                # loss = criterion(out,y.unsqueeze(1))  + 0.01*criterion(d,x)
+                loss_MAE = MAE_loss(out,y.unsqueeze(1))
+                loss_MSE = MSE_loss(out,y.unsqueeze(1))
+                loss_MAPE = MAPE_loss(out,y.unsqueeze(1)) 
+                loss_recon = criterion(d,x)
+                loss =  loss_MAE + loss_MSE + loss_MAPE  + 0.1* loss_recon
             else:
                 out =  model_RUL(x)
-                loss = criterion(out,y.unsqueeze(1))
+                # loss = criterion(out,y.unsqueeze(1))
+                loss_MAE = MAE_loss(out,y.unsqueeze(1))
+                loss_MSE = MSE_loss(out,y.unsqueeze(1))
+                loss_MAPE = MAPE_loss(out,y.unsqueeze(1)) 
+                # loss_recon = criterion(d,x)
+                loss =  loss_MAE + loss_MSE + loss_MAPE 
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item() * x.size()[0]
+            total_MAE_loss += loss_MAE.item() * x.size()[0]
+            total_MSE_loss += loss_MSE.item() * x.size()[0]
+            total_MAPE_loss += loss_MAPE.item() * x.size()[0]
+            if(model_RUL.name == "Transformer"):
+                total_recon_loss += loss_recon.item() * x.size()[0]
             total += x.size()[0]
             total_batches +=1
 
         end = time.time()
         times.append(end-start)
-        val_mse, val_mae, val_mape = test_model_RUL(model_RUL, criterion, val_dataloader, show_output= False)
-        print("Epoch = {}, Train Loss = {}, Val MSE = {}, MAE = {}, MAPE = {}".format(epoch, total_loss/total,val_mse, val_mae, val_mape))
+        val_mse, val_mae, val_mape = test_model_RUL(model_RUL, criterion, path, val_dataloader, show_output= False, ValidorTest='valid')
+        if(model_RUL.name == "Transformer"):
+            print("Epoch = {}, Train Loss = {}, Train_MAE={}, Train_MSE={}, Train_MAPE={}, Train_recon={}, Val MSE = {}, MAE = {}, MAPE = {}".format(epoch+1, total_loss/total, total_MAE_loss/total, total_MSE_loss/total, total_MAPE_loss/total, total_recon_loss/total, val_mse, val_mae, val_mape))
+
+        else:
+            print("Epoch = {}, Train Loss = {}, Train_MAE={}, Train_MSE={}, Train_MAPE={}, Val MSE = {}, MAE = {}, MAPE = {}".format(epoch+1, total_loss/total, total_MAE_loss/total, total_MSE_loss/total, total_MAPE_loss/total, val_mse, val_mae, val_mape))
         
-        evaluation = 0.75*val_mse + 0.15*val_mae + 0.20*val_mape 
+        evaluation = val_mse + val_mae + val_mape 
         early_stopping(evaluation, model_RUL,path)
 
         if early_stopping.early_stop:
@@ -112,8 +137,12 @@ def train_model_RUL(model_RUL,criterion, optimizer,train_dataloader,val_dataload
     return model_RUL
 
 
-def test_model_RUL(model_RUL, criterion, test_dataloader, show_output):
-    # model_RUL.eval()
+def test_model_RUL(model_RUL, criterion, path, test_dataloader, show_output, ValidorTest = 'valid'):
+    if ValidorTest == 'test':
+        model_RUL.load_state_dict(torch.load(path, map_location=device ))  
+
+    model_RUL.eval()
+    model_RUL.requires_grad_(False)
     
     total_loss_mse = 0
     total_mse = 0
@@ -167,6 +196,9 @@ def test_model_RUL(model_RUL, criterion, test_dataloader, show_output):
 def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion, 
                     optimizer, early_stopping, load_pretrained, path,
                      scenario, parameters,version,dataset):
+    all_MSE =[]
+    all_MAE =[]
+    all_MAPE =[]
     for fold in range(n_folds):
         print("*********************  Fold = {}  ********************* \n\n".format(fold))
         test_batteries = [i for i in range(len(discharge_capacities)) if i % n_folds == fold]
@@ -181,18 +213,23 @@ def perform_n_folds(model, n_folds,discharge_capacities,change_indices,criterion
                                                                                               change_indices, parameters["window_size"],
                                                                                                 parameters["stride"],parameters["channels"] ,scenario)
         
-        early_stopping = EarlyStopping(patience=100)
+        early_stopping = EarlyStopping(patience=20)
         model = train_model_RUL(model, criterion, optimizer,train_dataloader_RUL,val_dataloder_RUL,parameters["epochs"],
                                 parameters["learning_rate"],load_pretrained,fold_path,early_stopping,version)
         
-        test_model_RUL(model,criterion,test_dataloader_RUL,show_output=True)
+        mse, mae, mape = test_model_RUL(model,criterion, fold_path, test_dataloader_RUL, show_output=True, ValidorTest='test')
+        all_MSE.append(mse)
+        all_MAE.append(mae)
+        all_MAPE.append(mape)
+
         np.save(f"./Test_data/test_batteries_{dataset}_{model.name}_fold{fold}.npy", test_batteries, allow_pickle=True)
         np.save(f"./Test_data/train_batteries_{dataset}_{model.name}_fold{fold}.npy", train_batteries, allow_pickle=True)
         np.save(f"./Test_data/val_batteries_{dataset}_{model.name}_fold{fold}.npy", train_batteries, allow_pickle=True)
         if(fold !=n_folds-1):
             model.apply(weight_reset)
         else:
-            
+            print("Average Folds MSE = {} , MAE = {}, MAPE = {}  ".format(np.mean(all_MSE),np.mean(all_MAE),np.mean(all_MAPE)))    
+            print("STD Folds MSE = {} , MAE = {}, MAPE = {}  ".format(np.std(all_MSE),np.std(all_MAE),np.std(all_MAPE)))    
             return model, test_dataloader_RUL, test_batteries, train_batteries, val_batteries
     
         

@@ -191,7 +191,7 @@ class LSTM_Model_RUL(nn.Module):
         hidden_size2 = input_size
         num_layers = 4
         self.LSTM1 = nn.LSTM(input_size = input_size, hidden_size = hidden_size1, num_layers = num_layers,batch_first=True)
-        self.LSTM2 = nn.LSTM(input_size = input_size, hidden_size = hidden_size2, num_layers = num_layers,batch_first=True)
+        # self.LSTM2 = nn.LSTM(input_size = input_size, hidden_size = hidden_size2, num_layers = num_layers,batch_first=True)
 
         self.flatten = nn.Flatten()
         self.Linear1 = nn.Linear(hidden_size2*channels,128)
@@ -209,7 +209,7 @@ class LSTM_Model_RUL(nn.Module):
         # out, (hn, cn) = self.LSTM(x, (self.h0, self.c0))
 
         out, (_, _) = self.LSTM1(x)
-        out,(_,_) = self.LSTM2(out)
+        # out,(_,_) = self.LSTM2(out)
         
         out = self.flatten(out)
         out = self.relu(out)
@@ -226,11 +226,25 @@ class LSTM_Model_RUL(nn.Module):
 
     
 class Autoencoder(nn.Module):
-    def __init__(self,channels, input_size=16, hidden_dim=8, noise_level=0.01):
+    def __init__(self,channels, input_size=16, hidden_dim=8, noise_level=0.01, kernel_size=21):
         super(Autoencoder, self).__init__()
-        self.input_size, self.hidden_dim, self.noise_level = input_size, hidden_dim, noise_level
+        self.channels, self.input_size, self.hidden_dim, self.noise_level = channels, input_size, hidden_dim, noise_level
+        
+        # self.enc_conv1 = nn.Conv1d(channels, 5, kernel_size = kernel_size, padding = kernel_size//2)
+        # self.enc_conv2 = nn.Conv1d(5, 5, kernel_size = kernel_size, padding = kernel_size//2)
+        
+        self.enc_fc = nn.Linear(input_size* channels, hidden_dim)
+        
+        self.dec_fc = nn.Linear(hidden_dim, input_size*channels)
+        self.dec_conv1 = nn.Conv1d(5, 5, kernel_size = kernel_size, padding = kernel_size//2)
+        self.dec_conv2 = nn.Conv1d(5, channels, kernel_size = kernel_size, padding = kernel_size//2)
+        self.dec_conv_out = nn.Conv1d(channels, channels, kernel_size = 1)
+        # self.dec_conv = nn.Conv1d(1, channels, kernel_size = kernel_size, padding = kernel_size//2)
+
         self.conv1 = nn.Conv1d(channels,16,kernel_size = 21, stride=1,padding=21//2)
-        self.max_pool = nn.MaxPool1d(2,stride =2, padding =1)
+        self.max_pool = nn.MaxPool1d(2,2)
+        self.up = nn.Upsample(scale_factor=2, mode='nearest')
+
         self.conv2 = nn.Conv1d(16,32,kernel_size = 21, stride=1,padding=21//2)
         
 #         flatten_size = 128*math.floor(50/(2*2*2))
@@ -238,20 +252,27 @@ class Autoencoder(nn.Module):
         self.fc2 = nn.Linear(self.hidden_dim, self.input_size)
         self.flatten = nn.Flatten(start_dim=1)
         self.relu  = nn.ReLU()
+        self.leaky_relu = nn.LeakyReLU()
         self.en_conv1 = nn.Conv1d(32,16,kernel_size = 21, stride=1,padding=21//2)
         self.en_conv2 = nn.Conv1d(16,channels,kernel_size = 21, stride=1,padding=21//2)
     
         
     def encoder(self, x):
+        # x = self.enc_conv1(x)  
+        # x = self.relu(x)
+        # x = self.max_pool(x)
+        x = self.flatten(x)
+        x = self.enc_fc(x)   # (8)
         
-        x = self.conv1(x)
+
+        # x = self.conv1(x)
 #         x = self.relu(x/)
 #       x = self.max_pool(x)
 #         x = self.conv2(x)
 #       x = self.max_pool(x)
         
                
-        x = self.flatten(x)
+        # x = self.flatten(x)
 #         print(x.shape)
         h1 =self.relu(x)
         return h1
@@ -261,21 +282,32 @@ class Autoencoder(nn.Module):
         return corrupted_x
     
     def decoder(self, x):
+        x = self.dec_fc(x)  # 50
+        x = x.reshape(-1, self.channels, self.input_size)
+        # x = self.up(x)
+        # x = self.dec_conv2(x)
+        # x = self.leaky_relu(x)
+        # x = self.dec_conv_out(x)
+
+        # x = self.relu(x)
+        # x = torch.unsqueeze(x, 1)  # (1,50)
+        
        
-        x  = x.view(x.shape[0],-1,50)
 #         print(x.shape)
 #         x = self.en_conv1(x)
 #         x = self.relu(x)
-        x = self.en_conv2(x)
-        h2 = self.relu(x)
+        # x = self.en_conv2(x)
+        # x = self.relu(x)
 
-        return h2
+        return x
     
     def forward(self, x):
         out = self.mask(x)
         encode = self.encoder(out)
         
         decode = self.decoder(encode)
+        # print('encode:', encode.size(), 'decode:', decode.size())
+        # exit()
         return encode, decode
     
     
@@ -287,7 +319,7 @@ class PositionalEncoding(nn.Module):
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
 
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-
+        
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
 
@@ -301,7 +333,7 @@ class PositionalEncoding(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, channels, feature_size=16, hidden_dim=32, num_layers=2, nhead=8, dropout=0.1, noise_level=0.01):
+    def __init__(self, channels, feature_size=16, hidden_dim=128, num_layers=2, nhead=32, dropout=0.1, noise_level=0.01):
         super(Net, self).__init__()
         self.name = "Transformer"
         self.auto_hidden = int(feature_size/2)
@@ -311,14 +343,15 @@ class Net(nn.Module):
         self.cell = nn.TransformerEncoder(encoder_layers, num_layers=num_layers)
         self.linear1 = nn.Linear(input_size, 128)
         
-        self.linear2 = nn.Linear(128, 64)
-        self.linear3 = nn.Linear(64, 1)
+        # self.linear2 = nn.Linear(128, 50)
+        self.linear2 = nn.Linear(128, 1)
+        self.linear3 = nn.Linear(50, 1)
 #         self.LayerNorm = nn.LayerNorm(1)
         
         self.autoencoder = Autoencoder(channels,input_size=feature_size, hidden_dim=self.auto_hidden, noise_level=noise_level)
         self.sigmoid = nn.Sigmoid()
         self.relu    = nn.ReLU()
-        self.fc1 = nn.Linear(16*50, 8)
+        self.fc1 = nn.Linear(feature_size*50, int(feature_size/2))
         
  
     def forward(self, x): 
@@ -327,25 +360,34 @@ class Net(nn.Module):
 #         encode, decode = self.autoencoder(x.reshape(batch_size, -1))# batch_size*seq_len
         
         encode, decode = self.autoencoder(x)# batch_size*seq_len
-#         print(encode.shape)
-        out = self.fc1(encode)
-        out = out.reshape(batch_size, -1, self.auto_hidden)
-#         print("out", out.shape)
+        
+        # print('encode:',encode.size())
+        out = encode.reshape(batch_size, -1, self.auto_hidden)
+        # print('reshape:',out.size())
         
         out = self.pos(out)
-#         print("pos",out.shape)
+        # print("pos",out.shape)
         out = out.reshape(1, batch_size, -1) # (1, batch_size, feature_size)
+        # print("pos reshape",out.shape)
         out = self.cell(out)  
-#         print("cell",out.shape)
+        # print("cell",out.shape)
+        
         out = out.reshape(batch_size, -1) # (batch_size, hidden_dim)
-        out = self.linear1(out)            # out shape: (batch_size, 1)
+
+        out = self.relu(out)
+        out = self.linear1(out)
+        out = self.relu(out)
+        out = self.linear2(out)
+
+        # out = self.linear1(out)            # out shape: (batch_size, 1)
+        # out = self.relu(out)
 #         print("fc3",out.shape)
 #         out = self.LayerNorm(out)
-        out = self.linear2(out)
+        # out = self.linear2(out)
 #         print("fc4",out.shape)
-        out = self.relu(out)
+        # out = self.relu(out)
         
-        out = self.linear3(out)
+        # out = self.linear3(out)
 #         print("fc5",out.shape)
 #         out= self.sigmoid(out)
         
