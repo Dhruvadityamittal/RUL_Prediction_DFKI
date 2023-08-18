@@ -1,7 +1,7 @@
 import os
 os.chdir(".")
 
-from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model
+from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model, TransformerLSTM
 from load_data import get_data, get_data_RUL_scenario1, get_discharge_capacities_MIT,get_discharge_capacities_HUST, get_dirs, get_data_RUL_scenario2
 from dataloader import battery_dataloader, battery_dataloader_RUL, get_RUL_dataloader
 from import_file import *
@@ -11,10 +11,12 @@ from util_FPC import get_fpc_window, get_data, get_fpc, get_change_indices, Earl
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print("Training on ", device)
 
-# dataset = "HUST"
-dataset = "MIT"
+dataset = "HUST"
+# dataset = "MIT"
 # RUL_model_name = "LSTM"
-RUL_model_name = "Net"
+# RUL_model_name = "Net"
+# RUL_model_name = "CNN"
+RUL_model_name = "Transformer"
 
 print("Using Dataset :", dataset)
 
@@ -46,9 +48,12 @@ if(dataset == "MIT"):
     elif(RUL_model_name == "Net"):
         model_RUL = Net(len(channels), feature_size=window_size_RUL)    # Transformer Model
         learning_rate_RUL = 0.0001      
+    elif(RUL_model_name == "Transformer"):
+        model_RUL = TransformerLSTM(len(channels), window_size_RUL)
+        learning_rate_RUL = 0.0001
     else:
         model_RUL = CNN_Model_RUL(window_size_RUL,len(channels_RUL))  # CNN Model
-        learning_rate_RUL = 0.01      
+        learning_rate_RUL = 0.0001      
     
 else:
     channels  =[0] # channels
@@ -67,9 +72,12 @@ else:
     elif(RUL_model_name == "Net"):
         model_RUL = Net(len(channels))    # Transformer Model
         learning_rate_RUL = 0.001      # CNN Model
+    elif(RUL_model_name == "Transformer"):
+        model_RUL = TransformerLSTM(len(channels), window_size_RUL)
+        learning_rate_RUL = 0.001
     else:
         model_RUL = CNN_Model_RUL(window_size_RUL,len(channels_RUL))
-        learning_rate_RUL = 0.01      # CNN Model
+        learning_rate_RUL = 0.0001      # CNN Model
 
 
 
@@ -120,7 +128,7 @@ else:
 version = 1
 print("Version", version)
 # Get Change Indices
-change_indices_train,change_indices_test, _, _ = get_change_indices(model_FPC,discharge_capacities,channels,get_saved_indices = True, version = 1, name_start_train = name_start_train,name_start_test= name_start_test , dataset= "MIT") 
+change_indices_train,change_indices_test, _, _ = get_change_indices(model_FPC,discharge_capacities,channels,get_saved_indices = True, version = 1, name_start_train = name_start_train,name_start_test= name_start_test , dataset= dataset) 
 change_indices_all = np.concatenate((change_indices_train,change_indices_test))
 
 

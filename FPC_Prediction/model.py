@@ -157,14 +157,14 @@ class CNN_Model_RUL(nn.Module):
         # x= x.view(x.shape[0],1,x.shape[1])
         
         out = self.conv1(x)
-        # out = self.relu(out)
-        out = self.batch_norm1(out)
+        out = self.relu(out)
+        # out = self.batch_norm1(out)
         out = self.dropout(out)
         out = self.max_pool1(out)
 
         out = self.conv2(out)
-        # out = self.relu(out)
-        out = self.batch_norm2(out)
+        out = self.relu(out)
+        # out = self.batch_norm2(out)
         out = self.dropout(out)
         out = self.max_pool2(out)   
 
@@ -425,5 +425,46 @@ class Net_new(nn.Module):
         out = self.relu(out)
         
         return out
-    
-    
+
+from TinyHAR import TinyHAR_Model
+
+class TransformerLSTM(nn.Module):
+    def __init__(self, in_size, win_size):
+        super(TransformerLSTM, self).__init__()
+        # B F L C
+        self.name = "TransformerLSTM"
+        self.model = TinyHAR_Model(
+            input_shape = (64, 1, win_size, in_size),
+            number_class = 1,
+            filter_num = 20,
+            cross_channel_interaction_type = "attn",
+            cross_channel_aggregation_type = "FC",
+            temporal_info_interaction_type = "lstm",
+            temporal_info_aggregation_type = "tnaive"
+        )
+
+
+    def forward(self, x):
+
+        # B, C, L -> B, 1, C, L
+        x = torch.unsqueeze(x, 1)
+
+        # B, 1, C, L -> B, 1, L, C
+        x = torch.permute(x, (0, 1, 3, 2) )
+
+        # B, 1, L, C -> B, n_classes
+        x = self.model(x)
+
+        # BCE loss
+        if len(x.shape) == 1:
+            return x.squeeze()
+        return x
+
+    @torch.no_grad()
+    def predict(self, x):
+        self.eval()
+        r = self.forward(x)
+        # BCE
+        if len(r.squeeze().shape)==1:
+            return (torch.sigmoid(r)>0.5).long()
+        return r.argmax(dim=1, keepdim=False)
