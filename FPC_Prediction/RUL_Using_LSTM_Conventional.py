@@ -10,32 +10,46 @@ from load_data_conventional import *
 from dataloader_conventional import *
 from train_model_conventional import *
 from model_conventional import *
+from load_data import get_discharge_capacities_HUST,get_discharge_capacities_MIT
 
 
 warnings.filterwarnings('ignore')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# dataset = "MIT"
+dataset = "Combined"
+
+m_name = "CNN"
+
+if(dataset == "MIT"):
+    discharge_capacities = np.load(r"./Datasets/discharge_capacity.npy", allow_pickle=True)
+    discharge_capacities = discharge_capacities.tolist()
+    channels = [0,1,2,3,4,5,6]
+
+elif(dataset == "HUST"):    
+    discharge_capacities = get_discharge_capacities_HUST(fea_num=1)
+    channels = [0,1,2,3,4]
+else:
+    discharge_capacities_MIT = get_discharge_capacities_MIT()
+    discharge_capacities_HUST = get_discharge_capacities_HUST(fea_num=1)
+    discharge_capacities = discharge_capacities_MIT[0:100] + discharge_capacities_HUST[0:70] + discharge_capacities_MIT[100:] + discharge_capacities_HUST[70:]
+    channels = [0]
 
 
-discharge_capacities = np.load(r"./Datasets/discharge_capacity.npy", allow_pickle=True)
-discharge_capacities = discharge_capacities.tolist()
 percentage = 0.40
-
-np.array(discharge_capacities[0]).shape
 
 max_length_train,max_length_out = get_lengths(discharge_capacities,percentage)
 max_length_out = max_length_out+1
 
+if(m_name == "LSTM"):
+    model = LSTM_Model_Conventional(max_length_train,len(channels),max_length_out)
+else:
+    model = CNN_Model_Conventional(max_length_train,len(channels),max_length_out)
 
-channels = [0,1,2,3,4,5,6]
 
-
-model = LSTM_Model_Conventional(max_length_train,len(channels))
-# model = CNN_Model_Conventional(max_length_train,len(channels))
 ch = ''.join(map(str,channels))
-dataset = "MIT"
 version = 1
 fld = 3
-print(model.name)
+print(device,model.name, dataset)
 
 model_dir = "./Weights/Conventional/"
 model_path = f'{model_dir}/{dataset}_{model.name}_Conventional_Channels={ch}_Version={version}_Fold{fld}.pth'
