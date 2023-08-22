@@ -1,7 +1,7 @@
 import os
 os.chdir(".")
 
-from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model
+from model import CNN_Model, LSTM_Model_RUL, CNN_Model_RUL, Net, Net_new, Autoencoder, LSTM_Model,TransformerLSTM
 from load_data import get_data, get_data_RUL_scenario1, get_discharge_capacities_MIT,get_discharge_capacities_HUST, get_dirs, get_data_RUL_scenario2
 from dataloader import  battery_dataloader, battery_dataloader_RUL, get_RUL_dataloader
 from import_file import *
@@ -12,6 +12,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 percentage  = 0.10  # 10 percent data
 window_size = 50    # window size
+
 stride = 1          # stride
 channels_MIT  =[0,1,2,3,4,5,6] # channels MIT
 channels_HUST  =[0]           # channels HUST
@@ -61,7 +62,7 @@ scenario = 1
 learning_rate = 0.0001
 epochs = 500
 channels_RUL = [0]
-window_size_RUL = 50
+window_size_RUL = 64
 c_RUL  = ''.join(map(str,channels_RUL))
 
 parameters = {
@@ -74,13 +75,16 @@ parameters = {
 
 
 dataset = "Combined"
-learning_rate_RUL = 0.001
+learning_rate_RUL = 0.0001
 
-model_RUL = LSTM_Model_RUL(window_size,len(c_RUL))  # LSTM Model
+# model_RUL = LSTM_Model_RUL(window_size,len(c_RUL))  # LSTM Model
 # model_RUL = Net(len(channels_RUL))    # Transformer Model
-#model_RUL = CNN_Model_RUL(window_size,channels)    # CNN Model
+# model_RUL = CNN_Model_RUL(window_size,len(channels_RUL))    # CNN Model
 
-print(model_RUL.name)
+
+model_RUL = TransformerLSTM(len(channels_RUL), window_size)
+
+print(model_RUL.name,dataset,learning_rate_RUL)
 optimizer = torch.optim.Adam(model_RUL.parameters(), lr = learning_rate_RUL, betas= (0.9, 0.99))
 # criterion = nn.L1Loss()
 criterion = nn.MSELoss()
