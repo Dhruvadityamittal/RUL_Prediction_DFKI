@@ -43,13 +43,13 @@ if(dataset == "MIT"):
     model_FPC = LSTM_Model(window_size_FPC,len(channels))
 
     if(RUL_model_name == "LSTM"):
-        model_RUL = LSTM_Model_RUL(window_size_RUL,len(channels))  # LSTM Model
+        model_RUL = LSTM_Model_RUL(window_size_RUL,len(channels_RUL))  # LSTM Model
         learning_rate_RUL = 0.0001
     elif(RUL_model_name == "Net"):
-        model_RUL = Net(len(channels), feature_size=window_size_RUL)    # Transformer Model
+        model_RUL = Net(len(channels_RUL), feature_size=window_size_RUL)    # Transformer Model
         learning_rate_RUL = 0.0001      
     elif(RUL_model_name == "Transformer"):
-        model_RUL = TransformerLSTM(len(channels), window_size_RUL)
+        model_RUL = TransformerLSTM(len(channels_RUL), window_size_RUL)
         learning_rate_RUL = 0.0001
     else:
         model_RUL = CNN_Model_RUL(window_size_RUL,len(channels_RUL))  # CNN Model
@@ -57,7 +57,7 @@ if(dataset == "MIT"):
     
 else:
     channels  =[0] # channels
-    channels_RUL = [0]
+    channels_RUL = [0,1,2,3,4]
     name_start_train = 0
     name_start_test = 70
     
@@ -67,13 +67,13 @@ else:
     model_FPC = LSTM_Model(window_size_FPC,len(channels))
 
     if(RUL_model_name == "LSTM"):
-        model_RUL = LSTM_Model_RUL(window_size_RUL,len(channels))  # LSTM Model
+        model_RUL = LSTM_Model_RUL(window_size_RUL,len(channels_RUL))  # LSTM Model
         learning_rate_RUL = 0.0001
     elif(RUL_model_name == "Net"):
-        model_RUL = Net(len(channels))    # Transformer Model
+        model_RUL = Net(len(channels_RUL))    # Transformer Model
         learning_rate_RUL = 0.001      # CNN Model
     elif(RUL_model_name == "Transformer"):
-        model_RUL = TransformerLSTM(len(channels), window_size_RUL)
+        model_RUL = TransformerLSTM(len(channels_RUL), window_size_RUL)
         learning_rate_RUL = 0.001
     else:
         model_RUL = CNN_Model_RUL(window_size_RUL,len(channels_RUL))
@@ -201,4 +201,4 @@ _, _,  _, test_dataloader_RUL = get_RUL_dataloader(discharge_capacities, train_b
                                               change_indices_all, parameters["window_size"],
                                               parameters["stride"],parameters["channels"] ,scenario)
 
-plot_RUL(model_RUL,discharge_capacities,test_batteries,test_dataloader,change_indices_all,"Outputs/scenario1_RUL_prediction_"+dataset+"_test")
+plot_RUL(model_RUL,discharge_capacities,test_batteries,test_dataloader_RUL,change_indices_all,"Outputs/scenario1_RUL_prediction_"+dataset+"_test")

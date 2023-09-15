@@ -15,19 +15,20 @@ from load_data import get_discharge_capacities_HUST,get_discharge_capacities_MIT
 
 warnings.filterwarnings('ignore')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-# dataset = "MIT"
-dataset = "Combined"
+dataset = "HUST"
+# dataset = "Combined"
 
 m_name = "CNN"
+# m_name = "LSTM"
 
 if(dataset == "MIT"):
     discharge_capacities = np.load(r"./Datasets/discharge_capacity.npy", allow_pickle=True)
     discharge_capacities = discharge_capacities.tolist()
-    channels = [0,1,2,3,4,5,6]
+    channels = [0]
 
 elif(dataset == "HUST"):    
     discharge_capacities = get_discharge_capacities_HUST(fea_num=1)
-    channels = [0,1,2,3,4]
+    channels = [0]
 else:
     discharge_capacities_MIT = get_discharge_capacities_MIT()
     discharge_capacities_HUST = get_discharge_capacities_HUST(fea_num=1)
